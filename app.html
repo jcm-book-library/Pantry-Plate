@@ -1,0 +1,1331 @@
+<title>Pantry &amp; Plate</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column on phone, two on laptop. Tabs across the top: Tonight, Pantry, Recipes, Clear the cupboard, Shopping, Import. */
+:root{
+  /* Proton Seasons, shared with Jackets & Manuscripts: Proton Night base tinted ~5% by the month,
+     one soft colour per month in --accent. Dark-only by design. Level colours (--ok/--warn/--danger) never shift. */
+  --bg:#16141f; --surface:#1e1b2b; --raise:#2a2640; --line:#353050;
+  --fg:#f1effa; --muted:#a49fbf; --accent:#43ad8f; --accent-next:#7bae6a; --accent-ink:#ffffff;
+  --ok:#7fd1a0; --warn:#f0b75a; --danger:#ff7a7a;
+  --display:"Atkinson Hyperlegible",ui-sans-serif,system-ui,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+h1,h2,h3,.num{font-family:var(--display)}
+h1{font-size:clamp(26px,4vw,34px);font-weight:700;letter-spacing:-.02em;margin:0;text-wrap:balance}
+h2{font-size:17px;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h3{font-size:16px;font-weight:700;margin:0;line-height:1.3;text-wrap:balance}
+.lockup{--mk:52px;display:flex;align-items:center;gap:calc(var(--mk)*.18);margin-top:6px}
+.pp-mark{width:var(--mk);height:var(--mk);flex:none;color:var(--accent);display:block}
+.pp-wordmark{font-family:var(--display);font-weight:700;font-size:calc(var(--mk)*.38);line-height:1.06;letter-spacing:-.01em;color:#eef0fa}
+@media (max-width:520px){.lockup{--mk:44px}}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+#todayLabel{color:var(--accent)}
+.muted{color:var(--muted)}
+.tnum{font-variant-numeric:tabular-nums}
+.small{font-size:13px}
+
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:20px}
+.status{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none}
+.status[data-state="error"] .dot{background:var(--danger)}
+button{font:inherit;cursor:pointer;color:inherit}
+.btn{border:1px solid var(--line);background:var(--raise);color:var(--fg);border-radius:8px;padding:7px 12px;font-weight:600;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn-primary:hover{filter:brightness(1.08);border-color:var(--accent)}
+.btn-ghost{background:transparent}
+.btn-danger{color:var(--danger)}
+.btn:disabled{opacity:.5;cursor:default}
+.linkbtn{background:none;border:0;padding:2px 4px;color:var(--muted);font-size:12px;text-decoration:underline}
+.linkbtn:hover{color:var(--fg)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.notice{background:var(--raise);border:1px solid var(--line);border-left:3px solid var(--accent);padding:10px 14px;border-radius:8px;margin-bottom:18px;font-size:14px;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.notice[data-kind="error"]{border-left-color:var(--danger)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--raise);border:1px solid var(--accent);color:var(--fg);padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;z-index:50;max-width:calc(100vw - 32px);box-shadow:0 8px 30px rgba(0,0,0,.4)}
+
+/* tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:20px;width:max-content;max-width:100%;overflow-x:auto}
+.tab{border:0;background:transparent;color:var(--muted);border-radius:8px;padding:7px 14px;font-weight:600;font-size:14px;white-space:nowrap}
+.tab[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 24%,var(--surface));color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+.tab small{font-weight:500;font-size:11px;margin-left:4px;opacity:.8}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+@media (max-width:760px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;min-width:0;text-align:left;color:var(--fg)}
+button.stat:hover{border-color:var(--muted)}
+.stat .num{font-size:clamp(28px,4vw,40px);font-weight:700;line-height:1.05;letter-spacing:-.02em}
+.stat .sub{font-size:13px;color:var(--muted)}
+.stat.lead{background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 20%,var(--surface)),color-mix(in srgb,var(--accent-next) 8%,var(--surface)) 75%);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.stat.lead .num{color:color-mix(in srgb,var(--accent) 70%,#fff)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:20px;align-items:start}
+.grid.even{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media (max-width:900px){.grid,.grid.even{grid-template-columns:minmax(0,1fr)}}
+.stack{display:flex;flex-direction:column;gap:20px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.empty{color:var(--muted);font-size:14px;margin:0}
+
+/* form bits */
+input[type=text],input[type=search],input[type=date],input[type=number],input[type=url],select,textarea{font:inherit;font-size:14px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0;color-scheme:dark}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:none}
+textarea{resize:vertical;line-height:1.5}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label,.lbl{font-size:12px;color:var(--muted);font-weight:600}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.bar input[type=search]{flex:1 1 220px}
+.addrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-bottom:16px}
+@media (max-width:760px){.addrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.addrow .field:first-child{grid-column:1/-1}}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600}
+.chip[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 24%,var(--surface));border-color:var(--accent);color:var(--fg)}
+.chip .n{font-variant-numeric:tabular-nums;opacity:.7;margin-left:4px;font-weight:500}
+.chip[data-soon]{border-style:dashed;border-color:color-mix(in srgb,var(--warn) 60%,var(--line))}
+.tag{font-size:11px;padding:2px 8px;border-radius:999px;background:var(--raise);color:var(--muted);white-space:nowrap}
+.tag.ex{background:transparent;border:1px dashed var(--line)}
+.tag.soon{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.tag.gone{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.tag.base{color:var(--fg);background:color-mix(in srgb,var(--accent) 20%,transparent)}
+
+/* pantry list */
+.group-h{margin:16px 0 6px;display:flex;align-items:baseline;gap:8px}
+.group-h:first-child{margin-top:0}
+.items{list-style:none;margin:0;padding:0}
+.item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .nm{font-weight:600;background:none;border:0;padding:0;text-align:left;color:var(--fg)}
+.item .nm:hover{text-decoration:underline}
+.item .sub{font-size:12px;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:2px}
+.item[data-level="Out"] .nm{color:var(--muted);text-decoration:line-through}
+@media (max-width:560px){.item{grid-template-columns:minmax(0,1fr) auto}.item .lvl{grid-column:1/-1;justify-self:start}}
+.lvl{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px;gap:2px}
+.lvl button{border:0;background:transparent;color:var(--muted);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+.lvl button[aria-pressed="true"][data-l="Plenty"]{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--fg)}
+.lvl button[aria-pressed="true"][data-l="Low"]{background:color-mix(in srgb,var(--warn) 24%,transparent);color:var(--fg)}
+.lvl button[aria-pressed="true"][data-l="Out"]{background:color-mix(in srgb,var(--danger) 22%,transparent);color:var(--fg)}
+
+/* recipe cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.rcard{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0;text-align:left;color:var(--fg);cursor:pointer}
+.rcard:hover{border-color:var(--muted)}
+.rc-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.star{background:none;border:0;padding:0 2px;font-size:20px;line-height:1;color:var(--muted)}
+.star[aria-pressed="true"]{color:var(--warn)}
+.meta{font-size:13px;color:var(--muted)}
+.prog{height:5px;background:var(--raise);border-radius:3px;overflow:hidden}
+.prog > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-next));border-radius:3px}
+.prog.full > i{background:var(--ok)}
+.havel{font-size:13px;color:var(--muted)}
+.havel b{color:var(--fg);font-weight:600}
+.ready{color:var(--ok);font-weight:600}
+
+/* compact list (tonight side panels) */
+.mini{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.mini li{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+
+/* cupboard idea cards */
+.idea{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.idea .uses{display:flex;flex-wrap:wrap;gap:6px}
+.idea .uses span{font-size:12px;padding:3px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent) 18%,var(--surface));border:1px solid color-mix(in srgb,var(--accent) 40%,var(--line))}
+.idea .uses span.extra{background:var(--raise);border-color:var(--line);color:var(--muted)}
+.idea ol{margin:0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.idea details summary{cursor:pointer;font-size:13px;color:var(--muted);font-weight:600}
+.score{font-family:var(--display);font-weight:700;color:var(--accent);font-size:22px;line-height:1}
+
+/* shopping */
+.shop .item{grid-template-columns:auto minmax(0,1fr) auto}
+.shop input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.shop .item.done .nm{color:var(--muted);text-decoration:line-through}
+.weblinks{display:flex;flex-wrap:wrap;gap:8px}
+.link-chip{font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);text-decoration:none;background:var(--bg)}
+.link-chip:hover{border-color:var(--accent)}
+
+/* import */
+.conv{list-style:none;margin:0;padding:0;font-size:14px;display:flex;flex-direction:column;gap:5px}
+.conv li{padding-left:12px;border-left:2px solid var(--line)}
+mark{background:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--fg);border-radius:3px;padding:0 2px}
+.steps{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.ref{width:100%;border-collapse:collapse;font-size:13px}
+.ref th,.ref td{text-align:left;padding:6px 8px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.ref th{color:var(--muted);font-weight:600;border-top:0}
+.scroll-x{overflow-x:auto}
+
+/* dialogs */
+dialog{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:16px;padding:0;width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgba(8,6,14,.65)}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:1}
+.dlg-body{padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.dlg-foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line)}
+.dlg-foot .left{margin-right:auto}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.form-grid .w2{grid-column:span 2}.form-grid .w4{grid-column:1/-1}
+@media (max-width:600px){.form-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.form-grid .w2{grid-column:1/-1}}
+.ings{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.ings li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;align-items:baseline}
+.ings li.hdr{display:block;font-weight:700;margin-top:6px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.ings .mk{font-size:12px;text-align:center}
+.ings li[data-s="have"] .mk{color:var(--ok)}
+.ings li[data-s="miss"] .mk{color:var(--warn)}
+.ings li[data-s="opt"]{color:var(--muted)}
+.scaler{display:inline-flex;align-items:center;gap:6px}
+.scaler button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--raise);font-weight:700}
+.cooked-box{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.cooked-box .item{border-top:1px solid var(--line)}
+
+footer.foot{margin-top:28px}
+footer details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+footer summary{cursor:pointer;font-weight:600}
+footer textarea{width:100%;min-height:90px;font-size:12px;font-family:ui-monospace,Menlo,monospace}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow" id="todayLabel">Today</div>
+      <h1 class="lockup" aria-label="Pantry &amp; Plate"><svg class="pp-mark" viewBox="0 0 400 400" aria-hidden="true">
+<circle cx="200" cy="200" r="156" fill="none" stroke="currentColor" stroke-width="34"/>
+<circle cx="200" cy="200" r="96" fill="currentColor" opacity=".28"/>
+<path d="M200 284 C 200 230 214 176 262 132" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>
+<path d="M262 132 C 300 140 306 196 258 214 C 226 196 230 150 262 132 Z" fill="currentColor"/>
+<path d="M206 222 C 168 196 132 210 128 244 C 160 262 196 254 206 222 Z" fill="currentColor"/>
+</svg><span class="pp-wordmark">Pantry &amp;<br>Plate</span></h1>
+    </div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Saved on this device</span></div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" data-tab="tonight" id="tab-tonight">Tonight</button>
+    <button class="tab" role="tab" data-tab="pantry" id="tab-pantry">Pantry<small id="cPantry"></small></button>
+    <button class="tab" role="tab" data-tab="recipes" id="tab-recipes">Recipes<small id="cRecipes"></small></button>
+    <button class="tab" role="tab" data-tab="cupboard" id="tab-cupboard">Clear the cupboard</button>
+    <button class="tab" role="tab" data-tab="shop" id="tab-shop">Shopping<small id="cShop"></small></button>
+    <button class="tab" role="tab" data-tab="import" id="tab-import">Import &amp; convert</button>
+  </nav>
+
+  <div id="notices"></div>
+
+  <!-- Tonight -->
+  <section class="view" id="v-tonight" role="tabpanel" aria-labelledby="tab-tonight">
+    <div class="stats" id="stats"></div>
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head"><h2>Cook tonight</h2><span class="muted small">Ranked by what you have, favourites and what needs using</span></div>
+        <div class="cards" id="tonightCards"></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head"><h2>Use these soon</h2><span class="muted small">Use-by in the next 3 days</span></div>
+          <ul class="mini" id="soonList"></ul>
+          <button class="btn" data-act="cupboardSoon">Clear the cupboard with these</button>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Running low</h2></div>
+          <ul class="mini" id="lowList"></ul>
+          <button class="btn" data-act="addLowToShop">Add low &amp; out to the list</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pantry -->
+  <section class="view" id="v-pantry" role="tabpanel" aria-labelledby="tab-pantry" hidden>
+    <div class="panel">
+      <form class="addrow" id="addItemForm" autocomplete="off">
+        <div class="field"><label for="aiName">Add an item</label><input type="text" id="aiName" placeholder="e.g. Chicken thighs" required></div>
+        <div class="field"><label for="aiAmt">Amount (optional)</label><input type="text" id="aiAmt" placeholder="500g, 2 tins"></div>
+        <div class="field"><label for="aiLoc">Kept in</label><select id="aiLoc"></select></div>
+        <div class="field"><label for="aiUse">Use by (optional)</label><input type="date" id="aiUse"></div>
+        <button class="btn btn-primary" type="submit">Add</button>
+      </form>
+      <div class="bar">
+        <input type="search" id="pSearch" placeholder="Search the pantry" aria-label="Search the pantry">
+        <div class="chips" id="pFilter"></div>
+      </div>
+      <div id="pantryList"></div>
+    </div>
+  </section>
+
+  <!-- Recipes -->
+  <section class="view" id="v-recipes" role="tabpanel" aria-labelledby="tab-recipes" hidden>
+    <div class="panel">
+      <div class="bar">
+        <input type="search" id="rSearch" placeholder="Search recipes or ingredients" aria-label="Search recipes">
+        <select id="rSort" aria-label="Sort recipes"><option value="match">Best match with my pantry</option><option value="az">A to Z</option><option value="cooked">Most cooked</option><option value="recent">Recently added</option></select>
+        <button class="btn btn-primary" data-act="newRecipe">New recipe</button>
+      </div>
+      <div class="chips" id="rFilter" style="margin-bottom:14px"></div>
+      <div class="cards" id="recipeCards"></div>
+    </div>
+    <div class="panel" style="margin-top:20px">
+      <div class="panel-head"><h2>Find more online</h2><span class="muted small">Searches with your use-soon items. Bring one back through Import &amp; convert.</span></div>
+      <div class="weblinks" id="onlineLinks"></div>
+    </div>
+  </section>
+
+  <!-- Clear the cupboard -->
+  <section class="view" id="v-cupboard" role="tabpanel" aria-labelledby="tab-cupboard" hidden>
+    <div class="panel">
+      <div class="panel-head"><h2>What needs using up?</h2>
+        <div class="row"><button class="linkbtn" data-act="cbPickSoon">Pick use-soon items</button><button class="linkbtn" data-act="cbPickAll">Pick everything</button><button class="linkbtn" data-act="cbClear">Clear picks</button></div>
+      </div>
+      <div class="chips" id="cbChips"></div>
+    </div>
+    <div class="grid even" style="margin-top:20px">
+      <div class="panel">
+        <div class="panel-head"><h2>Cupboard ideas</h2><span class="muted small">Flexible meals built from your picks</span></div>
+        <div class="stack" id="cbIdeas" style="gap:12px"></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head"><h2>From your recipes</h2><span class="muted small">Most of your picks first</span></div>
+          <div class="cards" id="cbRecipes" style="grid-template-columns:minmax(0,1fr)"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h2>Search online with your picks</h2></div>
+          <div class="weblinks" id="cbLinks"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Shopping -->
+  <section class="view" id="v-shop" role="tabpanel" aria-labelledby="tab-shop" hidden>
+    <div class="grid">
+      <div class="panel shop">
+        <form class="bar" id="addShopForm" autocomplete="off">
+          <input type="text" id="sName" placeholder="Add to the list, e.g. Greek yoghurt" aria-label="Item to buy" style="flex:1 1 220px" required>
+          <select id="sCat" aria-label="Aisle"><option value="">Aisle: automatic</option></select>
+          <button class="btn btn-primary" type="submit">Add</button>
+        </form>
+        <div id="shopList"></div>
+      </div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head"><h2>List tools</h2></div>
+          <div class="stack" style="gap:8px">
+            <button class="btn" data-act="addLowToShop">Add low &amp; out pantry items</button>
+            <button class="btn" data-act="putAway">Put ticked items in the pantry</button>
+            <button class="btn" data-act="copyList">Copy the list as text</button>
+            <button class="btn btn-ghost" data-act="clearTicked">Remove ticked items</button>
+          </div>
+        </div>
+        <div class="panel"><p class="empty">The list is grouped in the order you walk a Coles or Woolies: fresh first, frozen last. Ticked items go into the pantry as "Plenty" when you put them away.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Import -->
+  <section class="view" id="v-import" role="tabpanel" aria-labelledby="tab-import" hidden>
+    <div class="grid even">
+      <div class="panel">
+        <div class="panel-head"><h2>Paste a recipe</h2><span class="muted small">From any site, email or note</span></div>
+        <div class="stack" style="gap:10px">
+          <textarea id="impText" rows="14" placeholder="Paste the recipe here. Best results: select the recipe from the title down to the last step, copy, and paste. You can also paste a page's source code; the recipe data in it is read automatically."></textarea>
+          <div class="row">
+            <label class="lbl" for="impSrc">Written for</label>
+            <select id="impSrc"><option value="US">US measures (cups, oz, °F)</option><option value="UK">UK measures (gas mark, imperial pints)</option><option value="AU">Already metric, just tidy the words</option></select>
+            <button class="btn btn-primary" data-act="convert">Convert to AU</button>
+            <button class="btn btn-ghost" data-act="impSample">Try an example</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="impOut">
+        <div class="panel-head"><h2>Converted</h2></div>
+        <p class="empty">The converted recipe appears here, with every change highlighted so you can check it before saving.</p>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:20px">
+      <div class="panel-head"><h2>AU kitchen measures</h2><span class="muted small">What the converter uses</span></div>
+      <div class="grid even">
+        <div class="scroll-x"><table class="ref">
+          <tr><th>Measure</th><th>Australia</th><th>US</th><th>UK</th></tr>
+          <tr><td>Cup</td><td>250ml</td><td>237ml</td><td>250ml (metric)</td></tr>
+          <tr><td>Tablespoon</td><td>20ml (4 tsp)</td><td>15ml (3 tsp)</td><td>15ml (3 tsp)</td></tr>
+          <tr><td>Teaspoon</td><td>5ml</td><td>5ml</td><td>5ml</td></tr>
+          <tr><td>Pint</td><td>—</td><td>473ml</td><td>568ml</td></tr>
+          <tr><td>Stick of butter</td><td>—</td><td>113g</td><td>—</td></tr>
+          <tr><td>Standard tin</td><td>400g</td><td>14.5oz (411g)</td><td>400g</td></tr>
+        </table></div>
+        <div class="scroll-x"><table class="ref">
+          <tr><th>Oven</th><th>Conventional</th><th>Fan-forced</th><th>Gas</th></tr>
+          <tr><td>Moderately slow</td><td>160°C (325°F)</td><td>140°C</td><td>3</td></tr>
+          <tr><td>Moderate</td><td>180°C (350°F)</td><td>160°C</td><td>4</td></tr>
+          <tr><td>Moderately hot</td><td>200°C (400°F)</td><td>180°C</td><td>6</td></tr>
+          <tr><td>Hot</td><td>220°C (425°F)</td><td>200°C</td><td>7</td></tr>
+          <tr><td>Very hot</td><td>240°C (475°F)</td><td>220°C</td><td>9</td></tr>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <details id="dataBox">
+      <summary>Your data and backups</summary>
+      <div class="stack" style="gap:10px;margin-top:12px">
+        <p class="empty" style="margin:0">Everything is saved in this browser on this device. Copy a backup to move it to another device or keep it safe, then paste it into Restore there.</p>
+        <div class="row">
+          <button class="btn" data-act="copyBackup">Copy a backup</button>
+          <button class="btn btn-ghost" data-act="clearExamples" id="clearExBtn">Remove the example items</button>
+          <button class="btn btn-ghost btn-danger" data-act="resetAll">Start again from the starter set</button>
+        </div>
+        <label class="lbl" for="restoreText">Restore from a backup</label>
+        <textarea id="restoreText" placeholder="Paste a backup here"></textarea>
+        <div class="row"><button class="btn" data-act="restore">Restore this backup</button></div>
+      </div>
+    </details>
+  </footer>
+</div>
+
+<!-- recipe view -->
+<dialog id="recipeDlg" aria-labelledby="rdTitle">
+  <div class="dlg-head">
+    <div style="min-width:0"><div class="eyebrow" id="rdEyebrow"></div><h2 id="rdTitle" style="font-size:22px"></h2><div class="meta" id="rdMeta"></div></div>
+    <div class="row" style="flex:none"><button class="star" id="rdStar" data-act="favDlg" aria-label="Favourite">★</button><button class="btn btn-ghost" data-act="closeDlg">Close</button></div>
+  </div>
+  <div class="dlg-body" id="rdBody"></div>
+  <div class="dlg-foot">
+    <button class="btn btn-ghost left" data-act="editFromView">Edit</button>
+    <button class="btn" data-act="missingToShop" id="rdMissBtn">Add missing to the list</button>
+    <button class="btn btn-primary" data-act="cookedIt">I cooked this</button>
+  </div>
+</dialog>
+
+<!-- recipe editor -->
+<dialog id="editDlg" aria-labelledby="edTitle">
+  <form id="editForm" method="dialog">
+    <div class="dlg-head"><h2 id="edTitle">Recipe</h2><button class="btn btn-ghost" type="button" data-act="closeDlg">Cancel</button></div>
+    <div class="dlg-body">
+      <div class="form-grid">
+        <div class="field w4"><label for="edName">Name</label><input type="text" id="edName" required></div>
+        <div class="field"><label for="edServes">Serves</label><input type="number" id="edServes" min="1" max="40" value="4"></div>
+        <div class="field"><label for="edTime">Time</label><input type="text" id="edTime" placeholder="40 min"></div>
+        <div class="field w2"><label for="edTags">Tags, separated by commas</label><input type="text" id="edTags" placeholder="pasta, freezer-friendly"></div>
+        <div class="field w4"><label for="edSource">Source link (optional)</label><input type="url" id="edSource" placeholder="https://"></div>
+        <div class="field w2"><label for="edIngs">Ingredients, one per line</label><textarea id="edIngs" rows="12" placeholder="500g beef mince&#10;1 brown onion, chopped&#10;Grated parmesan, to serve (optional)"></textarea><span class="muted small">Add "(optional)" to anything you can skip. A line ending in ":" becomes a heading.</span></div>
+        <div class="field w2"><label for="edSteps">Method, one step per line</label><textarea id="edSteps" rows="12"></textarea></div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn btn-ghost btn-danger left" type="button" data-act="deleteRecipe" id="edDelete">Delete recipe</button>
+      <button class="btn btn-primary" type="submit">Save recipe</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- pantry item editor -->
+<dialog id="itemDlg" aria-labelledby="itTitle" style="width:min(520px,calc(100vw - 32px))">
+  <form id="itemForm" method="dialog">
+    <div class="dlg-head"><h2 id="itTitle">Pantry item</h2><button class="btn btn-ghost" type="button" data-act="closeDlg">Cancel</button></div>
+    <div class="dlg-body">
+      <div class="form-grid">
+        <div class="field w4"><label for="itName">Name</label><input type="text" id="itName" required></div>
+        <div class="field w2"><label for="itAmt">Amount</label><input type="text" id="itAmt"></div>
+        <div class="field w2"><label for="itUse">Use by</label><input type="date" id="itUse"></div>
+        <div class="field w2"><label for="itLoc">Kept in</label><select id="itLoc"></select></div>
+        <div class="field w2"><label for="itCat">Aisle</label><select id="itCat"></select></div>
+        <label class="row w4 small" style="grid-column:1/-1"><input type="checkbox" id="itStaple"> Always restock this (adds to the list as soon as it runs low)</label>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button class="btn btn-ghost btn-danger left" type="button" data-act="deleteItem" id="itDelete">Remove</button>
+      <button class="btn btn-primary" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* ================= core: parsing, matching, AU conversion (pure functions) ================= */
+const FR = '½⅓⅔¼¾⅛⅜⅝⅞';
+const FRV = { '½': .5, '⅓': 1 / 3, '⅔': 2 / 3, '¼': .25, '¾': .75, '⅛': .125, '⅜': .375, '⅝': .625, '⅞': .875 };
+const NUM = `(?:\\d+\\s+\\d+\\/\\d+|\\d+\\/\\d+|\\d+\\s*[${FR}]|[${FR}]|\\d+(?:\\.\\d+)?)`;
+const QTY = `${NUM}(?:\\s*(?:-|–|to)\\s*${NUM})?`;
+
+function parseNum(s) {
+  s = s.trim();
+  let m;
+  if ((m = s.match(/^(\d+)\s+(\d+)\/(\d+)$/))) return +m[1] + m[2] / m[3];
+  if ((m = s.match(/^(\d+)\/(\d+)$/))) return m[1] / m[2];
+  if ((m = s.match(new RegExp(`^(\\d+)\\s*([${FR}])$`)))) return +m[1] + FRV[m[2]];
+  if (FRV[s] != null) return FRV[s];
+  return parseFloat(s);
+}
+const parseRange = s => s.split(/\s*(?:-|–|\bto\b)\s*/).filter(Boolean).map(parseNum);
+
+function fmtQty(n) {
+  if (!isFinite(n)) return '';
+  const whole = Math.floor(n + 1e-9), frac = n - whole;
+  const F = [[0, ''], [.25, '¼'], [1 / 3, '⅓'], [.5, '½'], [2 / 3, '⅔'], [.75, '¾'], [1, '']];
+  for (const [v, g] of F) if (Math.abs(frac - v) < .04) {
+    const w = v === 1 ? whole + 1 : whole;
+    return g ? (w ? w + g : g) : String(w);
+  }
+  return String(Math.round(n * 10) / 10);
+}
+function roundMetric(v) {
+  if (v < 10) return Math.round(v);
+  if (v < 250) return Math.round(v / 5) * 5;
+  return Math.round(v / 10) * 10;
+}
+function fmtMetric(v, u) { // u: 'g' or 'ml'
+  if (v >= 1000) return (Math.round(v / 100) / 10) + (u === 'g' ? 'kg' : 'L');
+  return roundMetric(v) + u;
+}
+
+// Grams per US cup for ingredients usually weighed in Australia.
+const CUP_G = [
+  [/self[- ]rais|self[- ]rising|all[- ]purpose|plain flour|bread flour|\bflour/, 125, 'flour'],
+  [/brown sugar/, 220, 'brown sugar'], [/icing sugar|powdered sugar|confectioner/, 120, 'icing sugar'],
+  [/caster|granulated|white sugar|\bsugar/, 200, 'sugar'], [/butter(?! ?milk)/, 227, 'butter'],
+  [/\brice\b/, 185, 'uncooked rice'], [/\boats\b/, 90, 'oats'], [/cocoa/, 85, 'cocoa'],
+  [/(grated|shredded).{0,12}cheese|cheddar|parmesan|mozzarella/, 100, 'grated cheese'],
+  [/choc(olate)? chips|choc bits/, 170, 'choc chips'], [/honey/, 340, 'honey']
+];
+const LIQUID = /water|milk|tomato sauce|stock|broth|cream(?! cheese)|juice|wine|vinegar|\boil\b|syrup|passata|yogh?urt|buttermilk/;
+
+function tbspAU(ml) { // 15ml US/UK tablespoons expressed in 20ml AU tablespoons + teaspoons
+  const t = Math.round(ml / 5 * 2) / 2, tb = Math.floor(t / 4), ts = t - tb * 4;
+  const parts = [];
+  if (tb) parts.push(fmtQty(tb) + ' tbsp');
+  if (ts) parts.push(fmtQty(ts) + ' tsp');
+  return parts.join(' + ') || '0 tsp';
+}
+
+// One-pass word swaps: US/UK kitchen words to the ones used in Australian shops and recipes.
+const TERMS = {
+  'cilantro': 'coriander', 'scallions': 'spring onions', 'scallion': 'spring onion', 'green onions': 'spring onions', 'green onion': 'spring onion',
+  'ground beef': 'beef mince', 'ground pork': 'pork mince', 'ground chicken': 'chicken mince', 'ground turkey': 'turkey mince', 'ground lamb': 'lamb mince', 'ground veal': 'veal mince',
+  'heavy whipping cream': 'thickened cream', 'heavy cream': 'thickened cream', 'whipping cream': 'thickened cream', 'double cream': 'thickened cream', 'single cream': 'pouring cream',
+  'half-and-half': 'half milk, half cream', 'all-purpose flour': 'plain flour', 'all purpose flour': 'plain flour', 'self-rising flour': 'self-raising flour',
+  'powdered sugar': 'icing sugar', "confectioners' sugar": 'icing sugar', 'confectioners sugar': 'icing sugar', 'superfine sugar': 'caster sugar', 'granulated sugar': 'white sugar',
+  'cornstarch': 'cornflour', 'corn starch': 'cornflour', 'baking soda': 'bicarb soda', 'arugula': 'rocket', 'romaine': 'cos lettuce',
+  'bell peppers': 'capsicums', 'bell pepper': 'capsicum', 'red pepper flakes': 'chilli flakes', 'crushed red pepper': 'chilli flakes',
+  'shrimp': 'prawns', 'garbanzo beans': 'chickpeas', 'beets': 'beetroot', 'rutabaga': 'swede', 'cantaloupe': 'rockmelon', 'courgettes': 'zucchini', 'courgette': 'zucchini', 'aubergine': 'eggplant',
+  'tomato sauce': 'passata', 'ketchup': 'tomato sauce', 'catsup': 'tomato sauce', 'chicken broth': 'chicken stock', 'beef broth': 'beef stock', 'vegetable broth': 'vegetable stock', 'broth': 'stock',
+  'canadian bacon': 'short-cut bacon', 'pie crust': 'shortcrust pastry', 'pie dough': 'shortcrust pastry', 'kosher salt': 'sea salt flakes', 'chili': 'chilli', 'chilies': 'chillies', 'chiles': 'chillies',
+  'plastic wrap': 'cling wrap', 'aluminum foil': 'foil', 'aluminium foil': 'foil', 'parchment paper': 'baking paper', 'wax paper': 'baking paper',
+  'cookie sheet': 'baking tray', 'sheet pan': 'baking tray', 'baking sheet': 'baking tray', 'skillet': 'frying pan', 'broiler': 'oven grill', 'broil': 'grill',
+  'canned': 'tinned', 'frosting': 'icing', 'graham crackers': 'digestive biscuits', 'cookies': 'biscuits', 'jello': 'jelly', 'zest of': 'finely grated rind of', 'stovetop': 'stovetop', 'hob': 'stovetop'
+};
+const TERM_RE = new RegExp(`\\b(${Object.keys(TERMS).sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
+const keepCase = (src, out) => src[0] === src[0].toUpperCase() && src[0] !== src[0].toLowerCase() ? out[0].toUpperCase() + out.slice(1) : out;
+
+const UNIT_RE = new RegExp(
+  `(${QTY})(\\s*-?\\s*)(?:(fl\\.?\\s*oz\\.?|fluid\\s+ounces?)|(cups?)|(tablespoons?|tbsps?\\.?|tbs\\.?|tbl\\.?)|(ounces?|oz\\.?)|(pounds?|lbs?\\.?)|(pints?)|(quarts?|qts?\\.?)|(gallons?)|(sticks?))(?![a-z])`, 'gi');
+
+/* Convert one line of a recipe to Australian measures and words.
+   Changed text is wrapped in \u0001…\u0002 so the preview can highlight it. */
+function convertLine(line, src = 'US') {
+  const changes = [];
+  const mark = (from, to) => { changes.push([from.trim(), to]); return '\u0001' + to + '\u0002'; };
+  let s = line;
+  if (src !== 'AU') {
+    s = s.replace(UNIT_RE, (m, q, sp, floz, cup, tbsp, oz, lb, pint, quart, gal, stick, off, whole) => {
+      const nums = parseRange(q), rest = whole.slice(off + m.length).toLowerCase();
+      const each = f => nums.map(f), joinM = (vals, u) => vals.map(v => fmtMetric(v, u)).join('–').replace(/(g|ml)–/, '–');
+      if (floz) return mark(m, joinM(each(n => n * (src === 'UK' ? 28.41 : 29.57)), 'ml'));
+      if (oz) return mark(m, joinM(each(n => n * 28.35), 'g'));
+      if (lb) return mark(m, joinM(each(n => n * 453.6), 'g'));
+      if (pint) return mark(m, joinM(each(n => n * (src === 'UK' ? 568 : 473)), 'ml'));
+      if (quart) return mark(m, joinM(each(n => n * (src === 'UK' ? 1136 : 946)), 'ml'));
+      if (gal) return mark(m, joinM(each(n => n * (src === 'UK' ? 4546 : 3785)), 'ml'));
+      if (stick) return /^\W*(of\s+)?(unsalted\s+|salted\s+)?butter/.test(rest) ? mark(m, joinM(each(n => n * 113), 'g')) : m;
+      if (tbsp) return mark(m, nums.length > 1 ? joinM(each(n => n * 15), 'ml') : tbspAU(nums[0] * 15));
+      if (cup) {
+        if (src === 'UK' || /^\s*\(\s*[\d.,]+\s*(g|ml|kg|l)\b/i.test(rest)) return m;
+        const ctx = rest.slice(0, 45);
+        const d = CUP_G.find(([re]) => re.test(ctx));
+        if (d && (!/\bcooked\b/.test(ctx.slice(0, 25)) || d[2] === 'butter')) return mark(m, joinM(each(n => n * d[1]), 'g'));
+        if (LIQUID.test(ctx)) return mark(m, joinM(each(n => n * 236.6), 'ml'));
+        changes.push([m.trim(), 'kept as cups (a US cup is about 1 tbsp smaller than an AU cup)']);
+        return m;
+      }
+      return m;
+    });
+    // Oven temperatures
+    s = s.replace(/(\d{3})\s*(?:°|º|degrees?\s*)\s*F(?:ahrenheit)?\b|(\d{3})F\b/g, (m, a, b) => {
+      const c = Math.round(((+(a || b)) - 32) * 5 / 9 / 10) * 10;
+      return mark(m, `${c}°C (${c - 20}°C fan-forced)`);
+    });
+    s = s.replace(/gas\s*mark\s*(\d)/gi, (m, g) => {
+      const c = { 1: 140, 2: 150, 3: 160, 4: 180, 5: 190, 6: 200, 7: 220, 8: 230, 9: 240 }[g];
+      return c ? mark(m, `${c}°C (${c - 20}°C fan-forced)`) : m;
+    });
+    // Pan and cutting sizes
+    const cm = v => { const x = v * 2.54; return x < 3 ? Math.round(x * 2) / 2 : Math.round(x); };
+    s = s.replace(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)(?:\s*-?\s*(?:inch(?:es)?|in\.|"|”))/gi, (m, a, b) => mark(m, `${cm(+a)}x${cm(+b)}cm`));
+    s = s.replace(new RegExp(`(${QTY})\\s*-?\\s*(?:inch(?:es)?|”|")(?![a-z])`, 'gi'), (m, q) => mark(m, parseRange(q).map(cm).join('–') + 'cm'));
+    // Tins, not cans
+    s = s.replace(/(\d|\))(\s*)(cans?)\b/gi, (m, a, sp, c) => a + sp + mark(c, c.toLowerCase() === 'cans' ? 'tins' : 'tin'));
+  }
+  s = s.replace(TERM_RE, m => {
+    const to = TERMS[m.toLowerCase()];
+    return to && to.toLowerCase() !== m.toLowerCase() ? mark(m, keepCase(m, to)) : m;
+  });
+  return { text: s, changes };
+}
+const plain = s => s.replace(/[\u0001\u0002]/g, '');
+
+/* Ingredient matching. Names are reduced to a key: lower case, descriptors removed, singular,
+   and two-word foods joined (spring_onion) so "onion" in the pantry doesn't match "spring onions". */
+const DESC = new Set('fresh freshly finely roughly coarsely chopped diced sliced thinly thickly grated crushed minced shredded cooked uncooked lightly beaten peeled large small medium ripe day-old boneless skinless extra virgin cut into florets juiced zested softened melted room temperature to serve taste optional of a an the and about dried ground baby whole halved quartered trimmed rinsed drained packed heaped level good quality plus more for garnish leftover any approx approximately'.split(' '));
+const UNITS = new Set('g gram grams kg ml l litre litres liter liters cup cups tbsp tbs tsp tablespoon tablespoons teaspoon teaspoons oz ounce ounces lb lbs pound pounds tin tins can cans clove cloves rasher rashers bunch bunches handful handfuls pinch head heads stick sticks sprig sprigs slice slices packet packets pkt sheet sheets punnet punnets x jar jars bottle bottles bag bags piece pieces fillet fillets'.split(' '));
+const COMPOUNDS = ['spring onion', 'coconut milk', 'coconut cream', 'peanut butter', 'sweet potato', 'chicken stock', 'beef stock', 'vegetable stock', 'fish sauce', 'oyster sauce', 'soy sauce', 'sweet chilli sauce', 'tomato paste', 'tomato sauce', 'sour cream', 'cream cheese', 'sesame oil', 'curry paste', 'egg noodle', 'rice noodle', 'brown sugar', 'icing sugar', 'caster sugar', 'baking powder', 'garlic powder', 'onion powder', 'chilli flake', 'lemon juice', 'lime juice', 'sesame seed', 'taco seasoning', 'cos lettuce', 'bicarb soda', 'rice wine', 'apple cider', 'ice cream', 'chilli sauce', 'bbq sauce', 'worcestershire sauce'];
+const SYN = { 'scallion': 'spring onion', 'green onion': 'spring onion', 'cilantro': 'coriander', 'capsicum': 'capsicum', 'bell pepper': 'capsicum', 'mince': 'mince', 'ground beef': 'beef mince', 'courgette': 'zucchini', 'aubergine': 'eggplant', 'shrimp': 'prawn', 'garbanzo bean': 'chickpea', 'broth': 'stock', 'cornstarch': 'cornflour', 'tortilla': 'tortilla', 'wrap': 'tortilla', 'yogurt': 'yoghurt', 'pasta sauce': 'passata' };
+function singular(w) {
+  if (w.length < 4 || /(ss|us|is)$/.test(w)) return w;
+  if (/(oes|ches|shes|xes)$/.test(w)) return w.slice(0, -2);
+  if (/ies$/.test(w)) return w.slice(0, -3) + 'y';
+  if (/ves$/.test(w) && !/(olives|chives)$/.test(w)) return w.slice(0, -3) + 'f';
+  return w.endsWith('s') ? w.slice(0, -1) : w;
+}
+function key(name) {
+  let t = ' ' + String(name).toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z\s-]/g, ' ').replace(/-/g, ' ')
+    .split(/\s+/).filter(w => w && !DESC.has(w) && !UNITS.has(w)).map(singular).join(' ') + ' ';
+  for (const [a, b] of Object.entries(SYN)) t = t.replace(` ${a} `, ` ${b} `);
+  for (const c of COMPOUNDS) t = t.split(` ${c} `).join(` ${c.replace(/ /g, '_')} `);
+  return t.trim();
+}
+const hasWords = (a, b) => b && (' ' + a + ' ').includes(' ' + b + ' ');
+const keysMatch = (a, b) => !!a && !!b && (hasWords(a, b) || hasWords(b, a));
+
+/* One ingredient line → { raw, item, key, optional, header } */
+function parseIng(line) {
+  const raw = line.trim();
+  if (!raw) return null;
+  if (/:\s*$/.test(raw) && raw.length < 50) return { raw, header: true };
+  const optional = /\boptional\b|\bto serve\b|\bto garnish\b|\bfor garnish\b/i.test(raw);
+  let s = raw.replace(/\([^)]*\)/g, ' ').split(',')[0].split(/\s+or\s+/i)[0];
+  s = s.replace(new RegExp(`^\\s*(about\\s+)?${QTY}\\s*`, 'i'), '');
+  s = s.replace(/^\s*x\s*\d+\s*(g|ml)?\s*/i, '');
+  const item = s.split(/\s+/).filter(w => !UNITS.has(w.toLowerCase().replace(/\.$/, '')) && !/^\d/.test(w)).join(' ').replace(/^of\s+/i, '').trim();
+  const label = item.split(/\s+/).filter(w => !DESC.has(w.toLowerCase())).join(' ') || item;
+  return { raw, item: label, key: key(item), optional };
+}
+
+/* Scale the leading amount of a line (and a "2 x 400g" multiplier) by f. */
+function scaleLine(line, f) {
+  if (f === 1) return line;
+  return line.replace(new RegExp(`^(\\s*)(${QTY})`), (m, sp, q) => sp + parseRange(q).map(n => {
+    const v = n * f;
+    return /^\s*\d+(\.\d+)?\s*(g|ml)\b/i.test(line.slice(m.length)) && v >= 10 ? String(roundMetric(v)) : fmtQty(v);
+  }).join('–'));
+}
+
+/* Recipe text → { title, serves, time, ings[], steps[] }. Reads schema.org JSON-LD when present. */
+function parseRecipeText(txt) {
+  const fromLd = parseLdRecipe(txt);
+  if (fromLd) return fromLd;
+  const lines = txt.replace(/<[^>]+>/g, ' ').split(/\r?\n/).map(l => l.replace(/^[\s•*·▢□☐◻\-–]+/, '').replace(/\s+/g, ' ').trim());
+  const isIngH = l => /^(ingredients?)(\s*(list|:))?\s*:?$/i.test(l);
+  const isMethH = l => /^(method|directions?|instructions?|steps|preparation|how to make( it)?)\s*:?$/i.test(l);
+  const isEnd = l => /^(notes?|nutrition(al)?( info(rmation)?)?|tips?|recipe notes|storage)\s*:?$/i.test(l);
+  let iI = lines.findIndex(isIngH), iM = lines.findIndex(isMethH);
+  const out = { title: '', serves: 4, time: '', ings: [], steps: [] };
+  const sv = txt.match(/\b(?:serves|servings|yield|makes)\s*:?\s*(\d+)/i);
+  if (sv) out.serves = +sv[1];
+  const tm = txt.match(/\b(?:total time|ready in|takes)\s*:?\s*((?:\d+\s*(?:hours?|hrs?|h)\s*)?(?:\d+\s*(?:minutes?|mins?|m))?)/i);
+  if (tm && tm[1].trim()) out.time = tm[1].trim().replace(/minutes?|mins?/i, 'min');
+  const firstText = lines.find(l => l && !isIngH(l) && !isMethH(l) && l.length < 90);
+  out.title = firstText || 'Imported recipe';
+  const qtyStart = new RegExp(`^(about\\s+)?${QTY}`, 'i');
+  if (iI >= 0) {
+    const end = iM > iI ? iM : lines.length;
+    for (let i = iI + 1; i < end; i++) { const l = lines[i]; if (!l) continue; if (isEnd(l)) break; out.ings.push(l); }
+  }
+  if (iM >= 0) {
+    const end = iI > iM ? iI : lines.length;
+    for (let i = iM + 1; i < end; i++) {
+      const l = lines[i]; if (!l) continue; if (isEnd(l)) break;
+      const st = l.replace(/^(step\s*)?\d+[.):]?\s*/i, '').trim();
+      if (st && !/^step\s*\d*$/i.test(l)) out.steps.push(st);
+    }
+  }
+  if (iI < 0 && iM < 0) { // no headings: amounts at the start mean ingredient, longer sentences mean method
+    lines.filter(l => l && l !== out.title).forEach(l => (qtyStart.test(l) && l.length < 90 ? out.ings : out.steps).push(l.replace(/^\d+[.)]\s+/, '')));
+  }
+  return out;
+}
+function parseLdRecipe(txt) {
+  if (!/recipeIngredient/.test(txt)) return null;
+  const blocks = [...txt.matchAll(/<script[^>]*ld\+json[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+  if (!blocks.length) blocks.push(txt);
+  const find = o => {
+    if (!o || typeof o !== 'object') return null;
+    if (Array.isArray(o)) { for (const x of o) { const r = find(x); if (r) return r; } return null; }
+    const t = o['@type']; if (t === 'Recipe' || (Array.isArray(t) && t.includes('Recipe'))) return o;
+    return find(o['@graph']) || null;
+  };
+  for (const b of blocks) {
+    let data; try { data = JSON.parse(b.trim()); } catch (e) { continue; }
+    const r = find(data); if (!r) continue;
+    const decode = s => String(s).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&#39;|&#039;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const steps = [];
+    const walk = x => { if (!x) return; if (typeof x === 'string') { x.split(/\n+/).forEach(s => s.trim() && steps.push(decode(s))); return; }
+      if (Array.isArray(x)) return x.forEach(walk); if (x.itemListElement) return walk(x.itemListElement); if (x.text) steps.push(decode(x.text)); };
+    walk(r.recipeInstructions);
+    const y = [].concat(r.recipeYield || '').join(' ').match(/\d+/);
+    const dur = String(r.totalTime || r.cookTime || '').match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+    return { title: decode(r.name || 'Imported recipe'), serves: y ? +y[0] : 4, time: dur ? [(dur[1] ? dur[1] + ' h' : ''), (dur[2] ? dur[2] + ' min' : '')].join(' ').trim() : '',
+      ings: [].concat(r.recipeIngredient || []).map(decode), steps, source: typeof r.url === 'string' ? r.url : '' };
+  }
+  return null;
+}
+/* ================= end core ================= */
+
+/* ---------- reference data ---------- */
+const LOCS = ['Fridge', 'Pantry', 'Freezer'];
+const LEVELS = ['Plenty', 'Low', 'Out'];
+// Aisles in the order you walk a typical Coles or Woolies.
+const CATS = ['Fruit & veg', 'Bakery', 'Meat & seafood', 'Deli & dairy', 'Pantry staples', 'Tins & jars', 'Sauces & spices', 'Baking', 'Snacks & drinks', 'Frozen', 'Household', 'Other'];
+const CAT_KW = [
+  ['Frozen', /frozen|ice cream|peas and corn/],
+  ['Fruit & veg', /apple|banana|berr|orange|lemon|lime|mandarin|grape|pear|kiwi|mango|avocado|tomato(?!.*(tin|paste|sauce|can))|potato|onion|garlic|ginger|carrot|celery|broccoli|cauliflower|zucchini|capsicum|eggplant|spinach|lettuce|rocket|kale|cabbage|cucumber|mushroom|pumpkin|corn|bean sprout|herb|coriander|parsley|basil|mint|chilli(?! (flake|sauce|powder))|leek|beetroot|asparagus|snow pea|bok choy|sweet potato|salad/],
+  ['Meat & seafood', /chicken(?! stock)|beef(?! stock)|pork|lamb|mince|bacon|ham\b|sausage|steak|fish(?! sauce)|salmon|prawn|tuna(?!.*tin)|turkey|chorizo|salami|veal/],
+  ['Deli & dairy', /milk(?!.*coconut)|cheese|cheddar|parmesan|feta|mozzarella|haloumi|butter(?!.*peanut)|cream|yoghurt|yogurt|egg\b|eggs|tofu|hummus|dip/],
+  ['Bakery', /bread|roll|bun|tortilla|wrap|pita|naan|croissant|muffin|crumpet|bagel/],
+  ['Pantry staples', /rice|pasta|spaghetti|penne|fusilli|macaroni|risoni|lasagne|noodle|couscous|quinoa|oats|cereal|lentil|flour|stock|breadcrumb/],
+  ['Tins & jars', /tin|tinned|can\b|canned|coconut milk|coconut cream|chickpea|kidney bean|black bean|passata|tomato paste|jam|peanut butter|honey|olives|pickle/],
+  ['Sauces & spices', /sauce|soy|oil|vinegar|salt|pepper|spice|cumin|paprika|oregano|cinnamon|curry|seasoning|stock cube|mustard|mayo|ketchup|chilli flake|herbs/],
+  ['Baking', /sugar|baking|yeast|cocoa|vanilla|chocolate|icing|bicarb|cornflour/],
+  ['Snacks & drinks', /chips|biscuit|cracker|nuts|juice|soft drink|coffee|tea\b|wine|beer|water/],
+  ['Household', /paper|foil|wrap\b|cling|detergent|soap|bin bag|sponge|dishwash|tissue|toilet/]
+];
+const guessCat = name => { const n = name.toLowerCase(); const hit = CAT_KW.find(([, re]) => re.test(n)); return hit ? hit[0] : 'Other'; };
+const guessLoc = (name, cat) => cat === 'Frozen' ? 'Freezer' : ['Meat & seafood', 'Deli & dairy'].includes(cat) || /spinach|lettuce|rocket|herb|coriander|parsley|mushroom|berr|zucchini|broccoli|spring onion|celery|carrot/.test(name.toLowerCase()) ? 'Fridge' : 'Pantry';
+const STAPLES = ['salt', 'pepper', 'water', 'oil', 'olive oil', 'vegetable oil'].map(key);
+
+/* ---------- starter set ---------- */
+const plusDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return isoDate(d); };
+const isoDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const today = () => isoDate(new Date());
+const uid = () => Math.random().toString(36).slice(2, 10);
+
+function starterPantry() {
+  const L = [
+    ['Eggs', '8', 'Fridge', 'Plenty'], ['Milk', '1L', 'Fridge', 'Low'], ['Cheddar cheese', '', 'Fridge', 'Plenty'], ['Butter', '', 'Fridge', 'Plenty'],
+    ['Chicken thighs', '500g', 'Fridge', 'Plenty', 2], ['Bacon', '', 'Fridge', 'Plenty', 4], ['Carrots', '', 'Fridge', 'Plenty'], ['Zucchini', '2', 'Fridge', 'Plenty', 2],
+    ['Broccoli', '1 head', 'Fridge', 'Low', 1], ['Spring onions', '1 bunch', 'Fridge', 'Plenty', 3], ['Baby spinach', '', 'Fridge', 'Low', 1], ['Lemon', '1', 'Fridge', 'Plenty'],
+    ['Jasmine rice', '', 'Pantry', 'Plenty'], ['Spaghetti', '500g', 'Pantry', 'Plenty'], ['Penne', '', 'Pantry', 'Low'], ['Tinned tomatoes', '2 tins', 'Pantry', 'Plenty'],
+    ['Coconut milk', '1 tin', 'Pantry', 'Plenty'], ['Chicken stock', '1L', 'Pantry', 'Plenty'], ['Soy sauce', '', 'Pantry', 'Plenty'], ['Brown onions', '', 'Pantry', 'Plenty'],
+    ['Garlic', '', 'Pantry', 'Plenty'], ['Potatoes', '', 'Pantry', 'Plenty'], ['Plain flour', '', 'Pantry', 'Plenty'], ['Red lentils', '', 'Pantry', 'Plenty'],
+    ['Tortillas', '4', 'Pantry', 'Low', 5], ['Red curry paste', '', 'Fridge', 'Plenty'], ['Olive oil', '', 'Pantry', 'Plenty'],
+    ['Frozen peas', '', 'Freezer', 'Plenty'], ['Beef mince', '500g', 'Freezer', 'Plenty'], ['Frozen corn', '', 'Freezer', 'Low']
+  ];
+  return L.map(([name, amt, loc, level, d]) => ({ id: uid(), name, amt, loc, level, cat: guessCat(name), useBy: d != null ? plusDays(d) : '', example: true, staple: ['Milk', 'Eggs', 'Butter'].includes(name) }));
+}
+function baseRecipes() {
+  const R = (title, serves, time, tags, ings, steps) => ({ id: uid(), title, serves, time, tags, ings, steps, base: true, fav: false, cooked: 0, lastCooked: '', added: today(), source: '' });
+  return [
+    R('Spaghetti bolognese', 4, '50 min', ['pasta', 'freezer-friendly'], [
+      '1 tbsp olive oil', '1 brown onion, finely chopped', '1 carrot, grated', '2 cloves garlic, crushed', '500g beef mince', '2 tbsp tomato paste',
+      '2 x 400g tins diced tomatoes', '1 cup (250ml) beef stock', '1 tsp dried oregano', '400g spaghetti', 'Grated parmesan, to serve (optional)'], [
+      'Heat the oil in a large saucepan over medium heat. Cook the onion and carrot for 5 minutes until soft, then add the garlic for 1 minute.',
+      'Turn the heat up, add the mince and cook, breaking it up, until browned.', 'Stir in the tomato paste for 1 minute, then add the tomatoes, stock and oregano.',
+      'Simmer, partly covered, for 30 minutes until thick. Season with salt and pepper.', 'Meanwhile cook the spaghetti in salted boiling water. Drain and serve with the sauce and parmesan.']),
+    R('Chicken & veg stir-fry', 4, '30 min', ['quick', 'weeknight'], [
+      '1½ cups jasmine rice', '500g chicken thigh fillets, thinly sliced', '1 tbsp vegetable oil', '2 cloves garlic, crushed', '1 tbsp grated ginger (optional)',
+      '1 head broccoli, cut into florets', '1 carrot, thinly sliced', '3 spring onions, sliced', '3 tbsp soy sauce', '1 tbsp oyster sauce', '1 tsp sesame oil (optional)'], [
+      'Cook the rice following the packet.', 'Heat half the oil in a wok over high heat. Stir-fry the chicken in two batches until golden and cooked. Set aside.',
+      'Add the rest of the oil, the garlic, ginger, broccoli and carrot. Stir-fry for 3 minutes with a splash of water.',
+      'Return the chicken with the soy and oyster sauces. Toss for 1 minute, then add the spring onions and sesame oil. Serve over rice.']),
+    R('Clean-out fried rice', 4, '20 min', ['use it up', 'quick'], [
+      '3 cups cooked rice (day-old is best)', '3 eggs, lightly beaten', '4 rashers bacon, chopped (or any leftover meat)', '1 cup frozen peas', '1 carrot, diced',
+      '3 spring onions, sliced', '2 tbsp soy sauce', '1 tbsp vegetable oil', '1 tsp sesame oil (optional)'], [
+      'Heat a little oil in a wok over high heat. Pour in the eggs, scramble until just set, then tip onto a plate.',
+      'Cook the bacon until crisp. Add the carrot and peas and stir-fry for 2 minutes.',
+      'Add the rest of the oil and the rice. Stir-fry for 3 to 4 minutes until hot and starting to crisp.', 'Stir through the soy sauce, eggs, spring onions and sesame oil.']),
+    R('Chicken noodle soup', 4, '45 min', ['soup', 'freezer-friendly'], [
+      '1 tbsp olive oil', '1 brown onion, chopped', '2 carrots, diced', '2 celery sticks, diced', '2 cloves garlic, crushed', '500g chicken thighs',
+      '1.5L chicken stock', '100g egg noodles', '1 lemon, juiced (optional)', 'Handful of parsley, chopped (optional)'], [
+      'Heat the oil in a large pot. Cook the onion, carrot and celery for 8 minutes until soft. Add the garlic for 1 minute.',
+      'Add the whole chicken thighs and stock. Bring to the boil, then simmer gently for 20 minutes.', 'Lift out the chicken and shred it with two forks.',
+      'Add the noodles to the pot and cook for 4 minutes. Return the chicken, add the lemon juice and parsley, and season.']),
+    R('Beef tacos', 4, '25 min', ['family', 'quick'], [
+      '1 tbsp olive oil', '1 brown onion, finely chopped', '500g beef mince', '30g taco seasoning', '½ cup (125ml) water', '8 small tortillas', '1 cup grated cheddar cheese',
+      '2 tomatoes, diced', '2 cups shredded cos lettuce', '½ cup sour cream (optional)', '1 avocado, sliced (optional)'], [
+      'Heat the oil in a frying pan and cook the onion for 3 minutes. Add the mince and cook until browned.', 'Stir in the taco seasoning and water. Simmer for 5 minutes until thick.',
+      'Warm the tortillas following the packet.', 'Fill with the beef, cheese, tomato, lettuce, sour cream and avocado.']),
+    R('Vegetable frittata', 4, '40 min', ['use it up', 'vegetarian'], [
+      '1 tbsp olive oil', '1 brown onion, sliced', '1 zucchini, grated', '1 cup baby spinach', '8 eggs', '½ cup (125ml) milk', '1 cup grated cheddar cheese',
+      'Any leftover cooked vegetables (optional)'], [
+      'Preheat the oven to 180°C (160°C fan-forced).', 'Heat the oil in an ovenproof frying pan. Cook the onion for 5 minutes, then add the zucchini and spinach until wilted.',
+      'Whisk the eggs, milk and half the cheese with salt and pepper. Pour over the vegetables and sprinkle with the rest of the cheese.',
+      'Cook on the stovetop for 3 minutes until the edges set, then bake for 15 to 20 minutes until just firm in the centre.'])
+  ];
+}
+
+/* ---------- clear-the-cupboard templates ---------- */
+// Each needs at least one item from every group in `needs`; anything matching `fits` can go in too.
+const ROLE = {
+  veg: i => i.cat === 'Fruit & veg' && !/apple|banana|berr|orange|lemon|lime|mandarin|grape|pear|kiwi|mango|herb|garlic|ginger/.test(i.name.toLowerCase()) || (i.cat === 'Frozen' && /pea|corn|bean|spinach|veg/.test(i.name.toLowerCase())),
+  protein: i => i.cat === 'Meat & seafood' || /tofu|chickpea|lentil|kidney bean|black bean|tuna/.test(i.name.toLowerCase()),
+  cheese: i => /cheese|cheddar|parmesan|feta|mozzarella|haloumi/.test(i.name.toLowerCase()),
+  egg: i => /\beggs?\b/.test(i.name.toLowerCase()),
+  rice: i => /\brice\b/.test(i.name.toLowerCase()) && !/noodle|paper/.test(i.name.toLowerCase()),
+  pasta: i => /pasta|spaghetti|penne|fusilli|macaroni|risoni|linguine|fettuccine|rigatoni|lasagne|shells/.test(i.name.toLowerCase()),
+  noodle: i => /noodle|ramen|udon|soba/.test(i.name.toLowerCase()),
+  wrap: i => /tortilla|wrap|pita|bread|naan/.test(i.name.toLowerCase()),
+  potato: i => /potato/.test(i.name.toLowerCase()),
+  flour: i => /flour/.test(i.name.toLowerCase()) && !/corn/.test(i.name.toLowerCase()),
+  soupbase: i => /stock|tinned tomato|diced tomato|crushed tomato|passata|lentil/.test(i.name.toLowerCase()),
+  currybase: i => /coconut milk|coconut cream|curry paste|tinned tomato|diced tomato|passata/.test(i.name.toLowerCase()),
+  tomato: i => /tinned tomato|diced tomato|crushed tomato|passata|tomato paste/.test(i.name.toLowerCase()),
+  aromatics: i => /onion|garlic|ginger/.test(i.name.toLowerCase())
+};
+const TEMPLATES = [
+  { id: 'friedrice', name: 'Fried rice', time: '20 min', likes: /pea|corn|carrot|spring onion|bacon|ham\b|prawn|capsicum|egg|chicken/, needs: [['rice']], fits: ['veg', 'protein', 'egg', 'aromatics'], basics: ['soy sauce', 'eggs'],
+    steps: ['Cook the rice if needed (day-old rice fries best).', 'Scramble {egg} in a hot wok and set aside.', 'Stir-fry {protein} until cooked, then {veg} for 2 to 3 minutes.', 'Add the rice and fry until hot and crisping. Stir through soy sauce and the egg.'] },
+  { id: 'frittata', name: 'Frittata', time: '35 min', likes: /spinach|zucchini|potato|feta|cheese|onion|mushroom|bacon|capsicum|egg/, needs: [['egg']], fits: ['veg', 'protein', 'cheese', 'potato', 'aromatics'], basics: ['eggs', 'milk'],
+    steps: ['Preheat the oven to 180°C (160°C fan-forced).', 'Soften {veg} in an ovenproof frying pan with a little oil, with {protein} if using.', 'Whisk 8 eggs with a splash of milk, salt and pepper, then pour over.', 'Scatter over {cheese}, cook 3 minutes on the stove, then bake 15 to 20 minutes.'] },
+  { id: 'pasta', name: 'Cupboard pasta', time: '25 min', likes: /tomato|zucchini|spinach|bacon|mince|mushroom|capsicum|broccoli|cheese|pasta|spaghetti|penne/, needs: [['pasta']], fits: ['veg', 'protein', 'cheese', 'tomato', 'aromatics'], basics: ['tinned tomatoes', 'garlic', 'parmesan'],
+    steps: ['Cook the pasta in salted boiling water. Keep a cup of the cooking water.', 'Fry {aromatics} in olive oil, then {protein} and {veg} until tender.', 'Add {tomato} and simmer 10 minutes, loosening with pasta water.', 'Toss through the pasta and finish with {cheese}.'] },
+  { id: 'soup', name: 'Everything soup', time: '45 min', likes: /carrot|celery|potato|onion|lentil|pumpkin|zucchini|stock|cabbage|leek|tomato/, needs: [['soupbase']], fits: ['veg', 'protein', 'potato', 'pasta', 'aromatics'], basics: ['chicken stock', 'brown onion'],
+    steps: ['Soften {aromatics} in a big pot with oil.', 'Add {veg} and {potato}, cook 5 minutes.', 'Add {soupbase} plus water or stock to cover. Simmer 20 to 25 minutes.', 'Add {protein} (cooked or diced raw) and small pasta if you like, simmer until done. Blend half for a thicker soup.'] },
+  { id: 'curry', name: 'Quick curry', time: '35 min', likes: /chicken|potato|coconut|pumpkin|spinach|lentil|chickpea|broccoli|capsicum|curry/, needs: [['currybase']], fits: ['veg', 'protein', 'potato', 'aromatics', 'rice'], basics: ['red curry paste', 'coconut milk', 'jasmine rice'],
+    steps: ['Fry {aromatics} with 2 tbsp curry paste until fragrant.', 'Add {protein} and brown lightly.', 'Pour in {currybase}, add {veg} and {potato}, and simmer 15 to 20 minutes.', 'Serve with {rice}.'] },
+  { id: 'fritters', name: 'Veggie fritters', time: '30 min', likes: /zucchini|corn|carrot|pea|potato|spinach|cheese|feta|flour/, needs: [['flour'], ['egg']], fits: ['veg', 'cheese', 'potato'], basics: ['plain flour', 'eggs'],
+    steps: ['Grate or finely chop {veg}. Squeeze out any water.', 'Mix with 2 eggs, ¾ cup plain flour, {cheese}, salt and pepper.', 'Fry spoonfuls in oil for 3 minutes each side until golden.', 'Serve with yoghurt, sweet chilli sauce or a fried egg.'] },
+  { id: 'quesadilla', name: 'Quesadillas or toasties', time: '15 min', likes: /cheese|chicken|mince|bean|capsicum|corn|spinach|tortilla|wrap|bread/, needs: [['wrap']], fits: ['cheese', 'protein', 'veg'], basics: ['tortillas', 'cheddar cheese'],
+    steps: ['Fill half of each {wrap} with {cheese}, {protein} and {veg}.', 'Fold and cook in a dry frying pan for 2 to 3 minutes each side until crisp and melted.', 'Cut into wedges.'] },
+  { id: 'noodles', name: 'Noodle stir-fry', time: '20 min', likes: /broccoli|carrot|capsicum|chicken|beef|pork|bok choy|snow pea|mushroom|spring onion|noodle/, needs: [['noodle']], fits: ['veg', 'protein', 'egg', 'aromatics'], basics: ['soy sauce', 'garlic'],
+    steps: ['Cook {noodle} following the packet.', 'Stir-fry {aromatics} and {protein} over high heat.', 'Add {veg} and a splash of water, cook 2 minutes.', 'Toss through the noodles with soy sauce and oyster sauce.'] }
+];
+
+/* ---------- state ---------- */
+const KEY = 'pp-data-v1';
+let storageOk = true;
+function load() {
+  try { const d = JSON.parse(localStorage.getItem(KEY) || 'null'); if (d && d.v === 1) return d; } catch (e) { storageOk = false; }
+  return fresh();
+}
+const fresh = () => ({ v: 1, pantry: starterPantry(), recipes: baseRecipes(), shop: [], cupboard: [] });
+const S = load();
+const ui = { tab: 'tonight', pFilter: 'All', pQ: '', rFilter: 'All', rQ: '', rSort: 'match', viewing: null, scale: 1, editing: null, editItem: null, imported: null, cookedOpen: false };
+let savedAt = null;
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); savedAt = new Date(); storageOk = true; } catch (e) { storageOk = false; }
+  drawStatus();
+}
+
+/* ---------- helpers ---------- */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const $ = id => document.getElementById(id);
+const daysUntil = iso => Math.round((new Date(iso + 'T00:00') - new Date(today() + 'T00:00')) / 864e5);
+const isSoon = i => i.useBy && i.level !== 'Out' && daysUntil(i.useBy) <= 3;
+function useByTag(i) {
+  if (!i.useBy) return '';
+  const d = daysUntil(i.useBy);
+  if (d < 0) return `<span class="tag gone">Past use-by</span>`;
+  if (d === 0) return `<span class="tag soon">Use today</span>`;
+  if (d <= 3) return `<span class="tag soon">Use in ${d} day${d > 1 ? 's' : ''}</span>`;
+  return `<span class="tag">Use by ${new Date(i.useBy + 'T00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>`;
+}
+let toastT;
+function toast(msg) {
+  let t = document.querySelector('.toast');
+  if (!t) { t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600);
+}
+async function copyText(text, fallbackLabel) {
+  try { await navigator.clipboard.writeText(text); toast('Copied'); }
+  catch (e) { const r = $('restoreText'); r.value = text; $('dataBox').open = true; r.focus(); r.select(); toast(fallbackLabel || 'Copy blocked here. The text is selected below, press Ctrl+C.'); }
+}
+
+/* pantry lookup cache: ingredient key → matching pantry item (not Out) */
+let haveCache = null;
+const invalidate = () => { haveCache = null; };
+function pantryHas(k) {
+  if (!k) return null;
+  haveCache ??= new Map();
+  if (haveCache.has(k)) return haveCache.get(k);
+  const hit = S.pantry.find(p => p.level !== 'Out' && keysMatch(k, key(p.name))) || (STAPLES.some(s => keysMatch(k, s) && /\b(salt|pepper|water|oil)\b/.test(k)) ? { staple: true, name: k } : null);
+  haveCache.set(k, hit);
+  return hit;
+}
+function recipeStatus(r) {
+  const ings = r.ings.map(parseIng).filter(x => x && !x.header);
+  const needed = ings.filter(x => !x.optional);
+  const have = needed.filter(x => pantryHas(x.key));
+  const missing = needed.filter(x => !pantryHas(x.key));
+  const usesSoon = ings.filter(x => { const p = pantryHas(x.key); return p && !p.staple && isSoon(p); }).length;
+  return { needed: needed.length, have: have.length, missing, usesSoon, pct: needed.length ? have.length / needed.length : 0 };
+}
+const matchScore = (r, st) => st.pct * 10 + (r.fav ? 2 : 0) + st.usesSoon * 1.5 - st.missing.length * .4;
+
+/* ---------- theme: Proton Seasons (same as Jackets & Manuscripts) ---------- */
+const MC = ['#e8935a', '#e07a7a', '#d9738f', '#c573b4', '#a674e0', '#7f6cf5', '#6a7ff0', '#5591e0', '#3fa4b8', '#43ad8f', '#7bae6a', '#d6a345'];
+const SEASON = ['Summer', 'Summer', 'Autumn', 'Autumn', 'Autumn', 'Winter', 'Winter', 'Winter', 'Spring', 'Spring', 'Spring', 'Summer'];
+const BASE = { bg: '#16141f', surface: '#1e1b2b', raise: '#2a2640', line: '#353050' };
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, t) => '#' + hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+function dayColour(iso) {
+  const y = +iso.slice(0, 4), m = +iso.slice(5, 7) - 1, d = +iso.slice(8, 10), len = new Date(y, m + 1, 0).getDate();
+  return mix(MC[m], MC[(m + 1) % 12], ((d - 1) / (len - 1)) * 0.6);
+}
+function applyTheme() {
+  const t = today(), m = +t.slice(5, 7) - 1, c = dayColour(t), r = document.documentElement.style;
+  r.setProperty('--accent', c); r.setProperty('--accent-next', MC[(m + 1) % 12]);
+  r.setProperty('--bg', mix(BASE.bg, c, 0.05)); r.setProperty('--surface', mix(BASE.surface, c, 0.05));
+  r.setProperty('--raise', mix(BASE.raise, c, 0.06)); r.setProperty('--line', mix(BASE.line, c, 0.08));
+  $('todayLabel').textContent = new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' }) + ' · ' + SEASON[m];
+  const mk = document.querySelector('.pp-mark');
+  if (mk) {
+    const svg = mk.outerHTML.replace('class="pp-mark"', 'xmlns="http://www.w3.org/2000/svg"').replace(/currentColor/g, c);
+    let l = document.querySelector('link[rel="icon"]');
+    if (!l) { l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+    l.type = 'image/svg+xml'; l.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+  }
+}
+
+/* ---------- drawing ---------- */
+function drawStatus() {
+  const st = $('status');
+  st.dataset.state = storageOk ? 'live' : 'error';
+  $('statusText').textContent = storageOk ? (savedAt ? 'Saved on this device at ' + savedAt.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : 'Saved on this device') : 'Not saving: this browser blocks storage';
+}
+function drawNotices() {
+  const n = [];
+  if (!storageOk) n.push(`<div class="notice" data-kind="error"><span>This browser isn't letting the app save. Changes last until you close the page. Use <b>Copy a backup</b> at the bottom to keep them.</span></div>`);
+  if (S.pantry.some(p => p.example)) n.push(`<div class="notice"><span>The pantry is filled with example items so you can see how it works. Edit them, or clear them and add your own.</span><button class="btn" data-act="clearExamples">Remove the examples</button></div>`);
+  $('notices').innerHTML = n.join('');
+  $('clearExBtn').hidden = !S.pantry.some(p => p.example);
+}
+function drawCounts() {
+  $('cPantry').textContent = S.pantry.filter(p => p.level !== 'Out').length;
+  $('cRecipes').textContent = S.recipes.length;
+  const open = S.shop.filter(s => !s.done).length;
+  $('cShop').textContent = open || '';
+}
+function recipeCard(r, st, opts = {}) {
+  const pct = Math.round(st.pct * 100), ready = st.missing.length === 0;
+  const miss = st.missing.slice(0, 3).map(m => esc(m.item)).join(', ') + (st.missing.length > 3 ? ` and ${st.missing.length - 3} more` : '');
+  const extra = opts.uses ? `<div class="havel">Uses your picks: <b>${opts.uses.map(esc).join(', ')}</b></div>` : '';
+  return `<article class="rcard" data-act="openRecipe" data-id="${r.id}" tabindex="0" role="button" aria-label="Open ${esc(r.title)}">
+    <div class="rc-top"><h3>${esc(r.title)}</h3><button class="star" data-act="fav" data-id="${r.id}" aria-pressed="${!!r.fav}" aria-label="Favourite ${esc(r.title)}">★</button></div>
+    <div class="meta">Serves ${r.serves}${r.time ? ' · ' + esc(r.time) : ''}${r.cooked ? ` · cooked ${r.cooked}×` : ''}</div>
+    <div class="prog${ready ? ' full' : ''}"><i style="width:${pct}%"></i></div>
+    <div class="havel">${ready ? '<span class="ready">Ready to cook</span> · you have everything' : `<b>${st.have} of ${st.needed}</b> on hand · missing ${miss}`}</div>
+    ${extra}
+    <div class="chips">${r.base ? '<span class="tag base">Base meal</span>' : ''}${st.usesSoon ? `<span class="tag soon">Uses ${st.usesSoon} use-soon item${st.usesSoon > 1 ? 's' : ''}</span>` : ''}${r.tags.slice(0, 3).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+  </article>`;
+}
+
+function drawTonight() {
+  const rs = S.recipes.map(r => ({ r, st: recipeStatus(r) }));
+  const ready = rs.filter(x => !x.st.missing.length).length;
+  const soon = S.pantry.filter(isSoon).sort((a, b) => a.useBy.localeCompare(b.useBy));
+  const low = S.pantry.filter(p => p.level !== 'Plenty');
+  const open = S.shop.filter(s => !s.done).length;
+  $('stats').innerHTML = `
+    <button class="stat lead" data-act="goRecipes" data-f="Ready"><span class="eyebrow">Ready to cook</span><span class="num tnum">${ready}</span><span class="sub">of ${S.recipes.length} recipes, with what you have</span></button>
+    <button class="stat" data-act="goPantry" data-f="Use soon"><span class="eyebrow">Use soon</span><span class="num tnum">${soon.length}</span><span class="sub">use-by in the next 3 days</span></button>
+    <button class="stat" data-act="goPantry" data-f="Low & out"><span class="eyebrow">Low or out</span><span class="num tnum">${low.length}</span><span class="sub">${low.filter(p => p.level === 'Out').length} finished</span></button>
+    <button class="stat" data-act="goShop"><span class="eyebrow">On the list</span><span class="num tnum">${open}</span><span class="sub">${open ? 'items to buy' : 'nothing to buy yet'}</span></button>`;
+  const top = rs.sort((a, b) => matchScore(b.r, b.st) - matchScore(a.r, a.st)).slice(0, 6);
+  $('tonightCards').innerHTML = top.length ? top.map(x => recipeCard(x.r, x.st)).join('') : '<p class="empty">Add a recipe to get suggestions.</p>';
+  $('soonList').innerHTML = soon.length ? soon.map(i => `<li><span>${esc(i.name)}</span>${useByTag(i)}</li>`).join('') : '<li class="muted">Nothing is close to its use-by. Add use-by dates in the pantry to see them here.</li>';
+  $('lowList').innerHTML = low.length ? low.slice(0, 10).map(i => `<li><span>${esc(i.name)}</span><span class="tag ${i.level === 'Out' ? 'gone' : 'soon'}">${i.level}</span></li>`).join('') + (low.length > 10 ? `<li class="muted">and ${low.length - 10} more</li>` : '') : '<li class="muted">Everything is stocked.</li>';
+}
+
+function drawPantry() {
+  const F = ['All', ...LOCS, 'Use soon', 'Low & out'];
+  const count = f => S.pantry.filter(filt(f)).length;
+  $('pFilter').innerHTML = F.map(f => `<button class="chip" data-act="pFilter" data-f="${f}" aria-pressed="${ui.pFilter === f}">${f}<span class="n">${count(f)}</span></button>`).join('');
+  const q = ui.pQ.toLowerCase();
+  const list = S.pantry.filter(filt(ui.pFilter)).filter(i => !q || i.name.toLowerCase().includes(q));
+  if (!list.length) { $('pantryList').innerHTML = `<p class="empty">${S.pantry.length ? 'Nothing matches.' : 'Your pantry is empty. Add what you have in the fridge, pantry and freezer above.'}</p>`; return; }
+  const groups = LOCS.map(l => [l, list.filter(i => i.loc === l)]).filter(g => g[1].length);
+  $('pantryList').innerHTML = groups.map(([loc, items]) => `<div class="group-h"><h2>${loc}</h2><span class="muted small">${items.length}</span></div>
+    <ul class="items">${items.sort((a, b) => a.name.localeCompare(b.name)).map(i => `<li class="item" data-level="${i.level}">
+      <div style="min-width:0"><button class="nm" data-act="editItem" data-id="${i.id}">${esc(i.name)}</button>
+        <div class="sub">${i.amt ? `<span>${esc(i.amt)}</span>` : ''}${useByTag(i)}<span>${esc(i.cat)}</span>${i.staple ? '<span class="tag">Restock</span>' : ''}${i.example ? '<span class="tag ex">Example</span>' : ''}</div></div>
+      <div class="lvl" role="group" aria-label="How much ${esc(i.name)}">${LEVELS.map(l => `<button data-act="level" data-id="${i.id}" data-l="${l}" aria-pressed="${i.level === l}">${l}</button>`).join('')}</div>
+      <button class="linkbtn" data-act="itemToShop" data-id="${i.id}">Add to list</button>
+    </li>`).join('')}</ul>`).join('');
+}
+const filt = f => i => f === 'All' ? true : f === 'Use soon' ? isSoon(i) : f === 'Low & out' ? i.level !== 'Plenty' : i.loc === f;
+
+function drawRecipes() {
+  const all = S.recipes.map(r => ({ r, st: recipeStatus(r) }));
+  const F = { All: () => true, Favourites: x => x.r.fav, Ready: x => !x.st.missing.length, 'Missing 1–2': x => x.st.missing.length > 0 && x.st.missing.length <= 2, 'Base meals': x => x.r.base, 'My additions': x => !x.r.base };
+  const label = { Ready: 'Ready to cook' };
+  $('rFilter').innerHTML = Object.keys(F).map(f => `<button class="chip" data-act="rFilter" data-f="${f}" aria-pressed="${ui.rFilter === f}">${label[f] || f}<span class="n">${all.filter(F[f]).length}</span></button>`).join('');
+  const q = ui.rQ.toLowerCase();
+  let list = all.filter(F[ui.rFilter] || F.All).filter(x => !q || (x.r.title + ' ' + x.r.tags.join(' ') + ' ' + x.r.ings.join(' ')).toLowerCase().includes(q));
+  const sorts = { match: (a, b) => matchScore(b.r, b.st) - matchScore(a.r, a.st), az: (a, b) => a.r.title.localeCompare(b.r.title), cooked: (a, b) => b.r.cooked - a.r.cooked, recent: (a, b) => (b.r.added || '').localeCompare(a.r.added || '') };
+  list.sort(sorts[ui.rSort]);
+  $('recipeCards').innerHTML = list.length ? list.map(x => recipeCard(x.r, x.st)).join('') : `<p class="empty">${ui.rFilter === 'Favourites' ? 'Tap the star on a recipe to keep it here.' : 'No recipes match.'}</p>`;
+  const soonNames = S.pantry.filter(isSoon).map(i => i.name).slice(0, 3);
+  $('onlineLinks').innerHTML = webLinks(q ? [ui.rQ] : soonNames.length ? soonNames : ['easy weeknight dinner']);
+}
+function webLinks(words) {
+  const qs = words.join(' ');
+  const enc = encodeURIComponent;
+  return [
+    ['taste.com.au', `https://www.taste.com.au/search-recipes/?q=${enc(qs)}`],
+    ['RecipeTin Eats', `https://www.recipetineats.com/?s=${enc(qs)}`],
+    ['BBC Good Food', `https://www.bbcgoodfood.com/search?q=${enc(qs)}`],
+    ['Google, AU sites', `https://www.google.com/search?q=${enc(qs + ' recipe site:.au')}`]
+  ].map(([n, u]) => `<a class="link-chip" href="${u}" target="_blank" rel="noopener">${n}: ${esc(qs)}</a>`).join('');
+}
+
+/* Clear the cupboard */
+function drawCupboard() {
+  const avail = S.pantry.filter(p => p.level !== 'Out').sort((a, b) => (isSoon(b) - isSoon(a)) || a.name.localeCompare(b.name));
+  S.cupboard = S.cupboard.filter(id => avail.some(p => p.id === id));
+  const picked = new Set(S.cupboard);
+  $('cbChips').innerHTML = avail.length ? avail.map(p => `<button class="chip" data-act="cbToggle" data-id="${p.id}" aria-pressed="${picked.has(p.id)}"${isSoon(p) ? ' data-soon' : ''}>${esc(p.name)}</button>`).join('') : '<p class="empty">Add pantry items first.</p>';
+  const picks = avail.filter(p => picked.has(p.id));
+  if (!picks.length) {
+    $('cbIdeas').innerHTML = '<p class="empty">Pick the things you want to use up. Dashed items are close to their use-by. Ideas appear here, built from your picks plus whatever else you have.</p>';
+    $('cbRecipes').innerHTML = ''; $('cbLinks').innerHTML = webLinks(['pantry clean out']); return;
+  }
+  const ideas = TEMPLATES.map(t => buildIdea(t, picks, avail)).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 5);
+  $('cbIdeas').innerHTML = ideas.length ? ideas.map(ideaCard).join('') : '<p class="empty">No flexible meal fits those picks. Try adding a base like rice, pasta, eggs, wraps or stock.</p>';
+  const pickKeys = picks.map(p => [p.name, key(p.name)]);
+  const fromR = S.recipes.map(r => {
+    const ik = r.ings.map(parseIng).filter(x => x && !x.header).map(x => x.key);
+    const uses = pickKeys.filter(([, k]) => ik.some(x => keysMatch(x, k))).map(([n]) => n);
+    return { r, st: recipeStatus(r), uses };
+  }).filter(x => x.uses.length).sort((a, b) => b.uses.length - a.uses.length || b.st.pct - a.st.pct).slice(0, 4);
+  $('cbRecipes').innerHTML = fromR.length ? fromR.map(x => recipeCard(x.r, x.st, { uses: x.uses })).join('') : '<p class="empty">None of your saved recipes use these.</p>';
+  $('cbLinks').innerHTML = webLinks(picks.slice(0, 3).map(p => p.name));
+}
+function buildIdea(t, picks, avail) {
+  const fitsRole = (i, role) => ROLE[role](i);
+  const roles = [...new Set([...t.needs.flat(), ...t.fits])];
+  // every needs-group must be met from picks or the wider pantry
+  const needMet = t.needs.every(g => avail.some(i => g.some(r => fitsRole(i, r))));
+  if (!needMet) return null;
+  const used = picks.filter(i => roles.some(r => fitsRole(i, r)));
+  if (!used.length) return null;
+  const fromPantry = [];
+  for (const g of t.needs) if (!used.some(i => g.some(r => fitsRole(i, r)))) { const x = avail.find(i => g.some(r => fitsRole(i, r))); if (x) fromPantry.push(x); }
+  ['aromatics'].forEach(r => { if (roles.includes(r) && !used.some(i => fitsRole(i, r))) { const x = avail.find(i => fitsRole(i, r) && !fromPantry.includes(i)); if (x) fromPantry.push(x); } });
+  const all = [...used, ...fromPantry];
+  const missing = t.basics.filter(b => !pantryHas(key(b)));
+  const soonUsed = used.filter(isSoon).length, liked = used.filter(i => t.likes.test(i.name.toLowerCase())).length;
+  const baseFromPicks = t.needs.filter(g => used.some(i => g.some(r => fitsRole(i, r)))).length;
+  const fill = s => s.replace(/\{(\w+)\}/g, (m, r) => {
+    const names = all.filter(i => ROLE[r] && fitsRole(i, r)).map(i => i.name.toLowerCase());
+    return names.length ? names.join(', ') : ({ egg: 'a couple of eggs', protein: 'any leftover meat', veg: 'any vegetables', cheese: 'a handful of cheese', aromatics: 'onion and garlic', tomato: 'a tin of tomatoes', potato: 'potato', rice: 'rice', noodle: 'the noodles', wrap: 'tortillas', soupbase: 'stock' }[r] || r);
+  });
+  return { t, used, fromPantry, missing, soonUsed, steps: t.steps.map(fill), score: used.length + liked * 2 + soonUsed * 1.5 + baseFromPicks * 3 - missing.length * 1.5 };
+}
+function ideaCard(x) {
+  return `<div class="idea">
+    <div class="rc-top"><div><h3>${esc(x.t.name)}</h3><div class="meta">${x.t.time} · uses ${x.used.length} of your picks${x.soonUsed ? `, ${x.soonUsed} use-soon` : ''}</div></div><span class="score tnum" title="Picks used">${x.used.length}</span></div>
+    <div class="uses">${x.used.map(i => `<span>${esc(i.name)}</span>`).join('')}${x.fromPantry.map(i => `<span class="extra">+ ${esc(i.name)}</span>`).join('')}</div>
+    ${x.missing.length ? `<div class="havel">You might want: ${x.missing.map(esc).join(', ')}</div>` : ''}
+    <details><summary>How to make it</summary><ol style="margin-top:8px">${x.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></details>
+    <div class="row"><button class="btn" data-act="saveIdea" data-t="${x.t.id}">Save as a recipe</button>${x.missing.length ? `<button class="btn btn-ghost" data-act="ideaMissing" data-t="${x.t.id}">Add the extras to the list</button>` : ''}</div>
+  </div>`;
+}
+function currentIdea(tid) {
+  const avail = S.pantry.filter(p => p.level !== 'Out'), picks = avail.filter(p => S.cupboard.includes(p.id));
+  return buildIdea(TEMPLATES.find(t => t.id === tid), picks, avail);
+}
+
+/* Shopping */
+function drawShop() {
+  const list = S.shop;
+  if (!list.length) { $('shopList').innerHTML = '<p class="empty">The list is empty. Add items above, or from a recipe or the pantry.</p>'; return; }
+  const groups = CATS.map(c => [c, list.filter(s => s.cat === c)]).filter(g => g[1].length);
+  $('shopList').innerHTML = groups.map(([c, items]) => `<div class="group-h"><h2>${c}</h2><span class="muted small">${items.filter(i => !i.done).length}</span></div>
+    <ul class="items">${items.map(s => `<li class="item${s.done ? ' done' : ''}">
+      <input type="checkbox" id="sh-${s.id}" data-act="tick" data-id="${s.id}" ${s.done ? 'checked' : ''}>
+      <label for="sh-${s.id}" style="min-width:0"><span class="nm">${esc(s.name)}</span>${s.note ? `<div class="sub">${esc(s.note)}</div>` : ''}</label>
+      <button class="linkbtn" data-act="delShop" data-id="${s.id}" aria-label="Remove ${esc(s.name)}">Remove</button></li>`).join('')}</ul>`).join('');
+}
+function addToShop(name, note = '') {
+  name = name.trim(); if (!name) return false;
+  const k = key(name);
+  const ex = S.shop.find(s => !s.done && keysMatch(key(s.name), k) && key(s.name).length && k.length);
+  if (ex) { if (note && !(ex.note || '').includes(note)) ex.note = ex.note ? ex.note + '; ' + note : note; return false; }
+  S.shop.push({ id: uid(), name: name[0].toUpperCase() + name.slice(1), cat: guessCat(name), note, done: false });
+  return true;
+}
+
+/* Recipe dialog */
+function openRecipe(id) {
+  const r = S.recipes.find(x => x.id === id); if (!r) return;
+  ui.viewing = id; ui.scale = r.serves; ui.cookedOpen = false;
+  drawRecipeDlg();
+  const d = $('recipeDlg'); if (!d.open) d.showModal();
+}
+function drawRecipeDlg() {
+  const r = S.recipes.find(x => x.id === ui.viewing); if (!r) return;
+  const st = recipeStatus(r), f = ui.scale / r.serves;
+  $('rdEyebrow').textContent = r.base ? 'Base meal' : (r.source ? 'Imported' : 'My recipe');
+  $('rdTitle').textContent = r.title;
+  $('rdMeta').textContent = [r.time, r.cooked ? `cooked ${r.cooked}×, last ${new Date(r.lastCooked + 'T00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}` : 'not cooked yet', ...r.tags].filter(Boolean).join(' · ');
+  $('rdStar').setAttribute('aria-pressed', !!r.fav);
+  $('rdMissBtn').hidden = !st.missing.length;
+  const ingHtml = r.ings.map(line => {
+    const p = parseIng(line); if (!p) return '';
+    if (p.header) return `<li class="hdr">${esc(line.replace(/:\s*$/, ''))}</li>`;
+    const have = pantryHas(p.key), s = p.optional && !have ? 'opt' : have ? 'have' : 'miss';
+    return `<li data-s="${s}"><span class="mk" aria-label="${s === 'have' ? 'You have this' : s === 'miss' ? 'Missing' : 'Optional'}">${s === 'have' ? '✓' : s === 'miss' ? '○' : '·'}</span><span>${esc(scaleLine(line, f))}</span></li>`;
+  }).join('');
+  const usedItems = [...new Set(r.ings.map(parseIng).filter(x => x && !x.header).map(x => pantryHas(x.key)).filter(x => x && !x.staple))];
+  $('rdBody').innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <div class="havel">${st.missing.length ? `<b>${st.have} of ${st.needed}</b> on hand · ○ marks what's missing` : '<span class="ready">You have everything for this</span>'}</div>
+      <div class="scaler"><span class="lbl">Serves</span><button data-act="scale" data-d="-1" aria-label="Fewer serves">−</button><b class="tnum" style="min-width:2ch;text-align:center">${ui.scale}</b><button data-act="scale" data-d="1" aria-label="More serves">+</button></div>
+    </div>
+    ${ui.cookedOpen ? `<div class="cooked-box"><h3>Nice. What's running low now?</h3><p class="empty" style="margin:0">Set anything you used up. Out and restock items go on the shopping list.</p>
+      <ul class="items">${usedItems.map(i => `<li class="item" data-level="${i.level}"><span class="nm">${esc(i.name)}</span><div class="lvl" role="group">${LEVELS.map(l => `<button data-act="level" data-id="${i.id}" data-l="${l}" aria-pressed="${i.level === l}">${l}</button>`).join('')}</div><span></span></li>`).join('') || '<li class="muted">Nothing from the pantry was used.</li>'}</ul>
+      <div class="row"><button class="btn btn-primary" data-act="cookedDone">Done</button></div></div>` : ''}
+    <div class="grid even" style="gap:24px">
+      <div><div class="eyebrow" style="margin-bottom:8px">Ingredients</div><ul class="ings">${ingHtml}</ul></div>
+      <div><div class="eyebrow" style="margin-bottom:8px">Method</div>${r.steps.length ? `<ol class="steps">${r.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol>` : '<p class="empty">No method saved.</p>'}
+      ${r.source ? `<p class="small" style="margin-top:14px"><a class="link-chip" href="${esc(r.source)}" target="_blank" rel="noopener">Original recipe</a></p>` : ''}</div>
+    </div>`;
+}
+
+/* Recipe editor */
+function openEditor(r) {
+  ui.editing = r && r.id ? r.id : null;
+  ui.editDraft = r || null;
+  $('edTitle').textContent = ui.editing ? 'Edit recipe' : 'New recipe';
+  $('edName').value = r?.title || ''; $('edServes').value = r?.serves || 4; $('edTime').value = r?.time || '';
+  $('edTags').value = (r?.tags || []).join(', '); $('edSource').value = r?.source || '';
+  $('edIngs').value = (r?.ings || []).join('\n'); $('edSteps').value = (r?.steps || []).join('\n');
+  $('edDelete').hidden = !ui.editing; $('edDelete').textContent = 'Delete recipe'; delete $('edDelete').dataset.armed;
+  $('editDlg').showModal(); $('edName').focus();
+}
+function openItem(id) {
+  const i = S.pantry.find(p => p.id === id); if (!i) return;
+  ui.editItem = id;
+  $('itName').value = i.name; $('itAmt').value = i.amt || ''; $('itUse').value = i.useBy || '';
+  $('itLoc').value = i.loc; $('itCat').value = i.cat; $('itStaple').checked = !!i.staple;
+  $('itemDlg').showModal();
+}
+
+/* Import */
+const SAMPLE = `Easy Chicken Enchiladas
+Serves 6 | Total time: 45 minutes
+
+Ingredients
+1 tablespoon olive oil
+1 pound boneless skinless chicken breasts, diced
+1 medium onion, chopped
+1 red bell pepper, diced
+2 cloves garlic, minced
+1 (15 oz) can black beans, drained
+1 cup canned tomato sauce
+2 tablespoons chili powder
+8 (8-inch) flour tortillas
+2 cups shredded cheddar cheese
+1/2 cup sour cream
+1/4 cup chopped cilantro
+
+Instructions
+1. Preheat oven to 375°F. Grease a 9x13-inch baking dish.
+2. Heat oil in a large skillet over medium heat. Cook chicken, onion and bell pepper for 8 minutes. Add garlic for 1 minute.
+3. Stir in beans, half the tomato sauce and the chili powder.
+4. Fill tortillas with the chicken mixture and 1 cup of the cheese. Roll up and place seam side down in the dish.
+5. Pour over the remaining sauce, top with remaining cheese and bake 20 minutes. Serve with sour cream and cilantro.`;
+
+function runConvert() {
+  const txt = $('impText').value.trim();
+  if (!txt) { toast('Paste a recipe first'); return; }
+  const src = $('impSrc').value, p = parseRecipeText(txt);
+  const ings = p.ings.map(l => convertLine(l, src)), steps = p.steps.map(l => convertLine(l, src));
+  const title = convertLine(p.title, src);
+  const changes = [...ings, ...steps, title].flatMap(x => x.changes);
+  const uniq = [...new Map(changes.map(c => [c.join('→').toLowerCase(), c])).values()];
+  ui.imported = { title: plain(title.text), serves: p.serves, time: p.time, tags: ['imported'], source: p.source || '', ings: ings.map(x => plain(x.text)), steps: steps.map(x => plain(x.text)) };
+  const hl = s => esc(s).replace(/\u0001/g, '<mark>').replace(/\u0002/g, '</mark>');
+  $('impOut').innerHTML = `
+    <div class="panel-head"><div><div class="eyebrow">Converted · serves ${p.serves}${p.time ? ' · ' + esc(p.time) : ''}</div><h2 style="font-size:20px">${hl(title.text)}</h2></div>
+      <button class="btn btn-primary" data-act="saveImport">Check and save</button></div>
+    ${!p.ings.length ? '<p class="notice" data-kind="error">No ingredients found. Check the paste includes an "Ingredients" heading, or edit after saving.</p>' : ''}
+    <div class="stack" style="gap:16px">
+      <div><div class="eyebrow" style="margin-bottom:6px">Ingredients</div><ul class="ings">${ings.map(x => `<li><span class="mk">·</span><span>${hl(x.text)}</span></li>`).join('')}</ul></div>
+      <div><div class="eyebrow" style="margin-bottom:6px">Method</div><ol class="steps">${steps.map(x => `<li>${hl(x.text)}</li>`).join('')}</ol></div>
+      <div><div class="eyebrow" style="margin-bottom:6px">${uniq.length} change${uniq.length === 1 ? '' : 's'}</div>
+        <ul class="conv">${uniq.map(([a, b]) => `<li><span class="muted">${esc(a)}</span> → ${esc(b)}</li>`).join('') || '<li class="muted">Nothing needed converting.</li>'}</ul></div>
+    </div>`;
+}
+
+/* ---------- tabs ---------- */
+const DRAW = { tonight: drawTonight, pantry: drawPantry, recipes: drawRecipes, cupboard: drawCupboard, shop: drawShop, import: () => {} };
+function setTab(name, keepScroll) {
+  if (!DRAW[name]) name = 'tonight';
+  ui.tab = name;
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
+  document.querySelectorAll('.view').forEach(v => v.hidden = v.id !== 'v-' + name);
+  DRAW[name]();
+  try { localStorage.setItem('pp-tab', name); } catch (e) {}
+  if (!keepScroll) window.scrollTo({ top: 0 });
+}
+function redraw() { invalidate(); drawCounts(); drawNotices(); DRAW[ui.tab](); if ($('recipeDlg').open) drawRecipeDlg(); }
+function commit() { save(); redraw(); }
+
+/* ---------- actions ---------- */
+const ACT = {
+  goRecipes: b => { ui.rFilter = b.dataset.f || 'All'; setTab('recipes'); },
+  goPantry: b => { ui.pFilter = b.dataset.f || 'All'; setTab('pantry'); },
+  goShop: () => setTab('shop'),
+  openRecipe: b => openRecipe(b.dataset.id),
+  fav: b => { const r = S.recipes.find(x => x.id === b.dataset.id); r.fav = !r.fav; commit(); },
+  favDlg: () => { const r = S.recipes.find(x => x.id === ui.viewing); r.fav = !r.fav; commit(); },
+  closeDlg: b => b.closest('dialog').close(),
+  scale: b => { ui.scale = Math.max(1, Math.min(40, ui.scale + +b.dataset.d)); drawRecipeDlg(); },
+  missingToShop: () => {
+    const r = S.recipes.find(x => x.id === ui.viewing), st = recipeStatus(r);
+    const n = st.missing.filter(m => addToShop(m.item, 'for ' + r.title)).length;
+    commit(); toast(n ? `Added ${n} item${n > 1 ? 's' : ''} to the shopping list` : 'Already on the list');
+  },
+  cookedIt: () => {
+    const r = S.recipes.find(x => x.id === ui.viewing); r.cooked = (r.cooked || 0) + 1; r.lastCooked = today();
+    ui.cookedOpen = true; commit(); $('rdBody').scrollIntoView({ block: 'start' });
+  },
+  cookedDone: () => { ui.cookedOpen = false; $('recipeDlg').close(); toast('Logged. Enjoy!'); },
+  editFromView: () => { const r = S.recipes.find(x => x.id === ui.viewing); $('recipeDlg').close(); openEditor(r); },
+  newRecipe: () => openEditor(null),
+  deleteRecipe: b => {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again to delete'; return; }
+    S.recipes = S.recipes.filter(r => r.id !== ui.editing); $('editDlg').close(); commit(); toast('Recipe deleted');
+  },
+  pFilter: b => { ui.pFilter = b.dataset.f; drawPantry(); },
+  rFilter: b => { ui.rFilter = b.dataset.f; drawRecipes(); },
+  level: b => {
+    const i = S.pantry.find(p => p.id === b.dataset.id); i.level = b.dataset.l;
+    if (i.level === 'Out') i.useBy = '';
+    if (i.level !== 'Plenty' && i.staple && addToShop(i.name, 'restock')) toast(`${i.name} added to the shopping list`);
+    else if (i.level === 'Out' && addToShop(i.name)) toast(`${i.name} added to the shopping list`);
+    commit();
+  },
+  editItem: b => openItem(b.dataset.id),
+  deleteItem: b => {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again to remove'; return; }
+    S.pantry = S.pantry.filter(p => p.id !== ui.editItem); $('itemDlg').close(); commit();
+  },
+  itemToShop: b => { const i = S.pantry.find(p => p.id === b.dataset.id); toast(addToShop(i.name) ? `${i.name} added to the list` : `${i.name} is already on the list`); commit(); },
+  addLowToShop: () => { const n = S.pantry.filter(p => p.level !== 'Plenty').filter(p => addToShop(p.name, p.level === 'Low' ? 'running low' : '')).length; commit(); toast(n ? `Added ${n} item${n > 1 ? 's' : ''} to the list` : 'Those are already on the list'); },
+  tick: b => { const s = S.shop.find(x => x.id === b.dataset.id); s.done = b.checked; commit(); },
+  delShop: b => { S.shop = S.shop.filter(x => x.id !== b.dataset.id); commit(); },
+  clearTicked: () => { const n = S.shop.filter(s => s.done).length; S.shop = S.shop.filter(s => !s.done); commit(); toast(n ? `Removed ${n} ticked item${n > 1 ? 's' : ''}` : 'Nothing is ticked'); },
+  putAway: () => {
+    const done = S.shop.filter(s => s.done); if (!done.length) { toast('Tick the items you bought first'); return; }
+    done.forEach(s => {
+      const k = key(s.name), p = S.pantry.find(x => keysMatch(key(x.name), k));
+      if (p) { p.level = 'Plenty'; p.example = false; }
+      else { const cat = guessCat(s.name); S.pantry.push({ id: uid(), name: s.name, amt: '', loc: guessLoc(s.name, cat), level: 'Plenty', cat, useBy: '', staple: false }); }
+    });
+    S.shop = S.shop.filter(s => !s.done); commit(); toast(`Put ${done.length} item${done.length > 1 ? 's' : ''} in the pantry`);
+  },
+  copyList: () => {
+    const open = S.shop.filter(s => !s.done); if (!open.length) { toast('The list is empty'); return; }
+    const txt = CATS.map(c => [c, open.filter(s => s.cat === c)]).filter(g => g[1].length).map(([c, it]) => c.toUpperCase() + '\n' + it.map(s => '☐ ' + s.name).join('\n')).join('\n\n');
+    copyText(txt);
+  },
+  cupboardSoon: () => { S.cupboard = S.pantry.filter(isSoon).map(p => p.id); save(); setTab('cupboard'); },
+  cbToggle: b => { const id = b.dataset.id; S.cupboard = S.cupboard.includes(id) ? S.cupboard.filter(x => x !== id) : [...S.cupboard, id]; commit(); },
+  cbPickSoon: () => { S.cupboard = S.pantry.filter(isSoon).map(p => p.id); commit(); },
+  cbPickAll: () => { S.cupboard = S.pantry.filter(p => p.level !== 'Out').map(p => p.id); commit(); },
+  cbClear: () => { S.cupboard = []; commit(); },
+  saveIdea: b => {
+    const x = currentIdea(b.dataset.t); if (!x) return;
+    openEditor({ title: x.t.name + ' with ' + x.used.slice(0, 2).map(i => i.name.toLowerCase()).join(' and '), serves: 4, time: x.t.time, tags: ['use it up'],
+      ings: [...x.used, ...x.fromPantry].map(i => i.amt ? `${i.amt} ${i.name.toLowerCase()}` : i.name).concat(x.missing.map(m => m + ' (optional)')), steps: x.steps, source: '' });
+  },
+  ideaMissing: b => { const x = currentIdea(b.dataset.t); const n = x.missing.filter(m => addToShop(m, 'for ' + x.t.name.toLowerCase())).length; commit(); toast(n ? `Added ${n} to the list` : 'Already on the list'); },
+  convert: () => runConvert(),
+  impSample: () => { $('impText').value = SAMPLE; $('impSrc').value = 'US'; runConvert(); },
+  saveImport: () => { if (ui.imported) openEditor({ ...ui.imported }); },
+  copyBackup: () => copyText(JSON.stringify(S), 'The backup is selected below. Press Ctrl+C (or long-press and Copy) to copy it.'),
+  restore: () => {
+    try {
+      const d = JSON.parse($('restoreText').value);
+      if (d.v !== 1 || !Array.isArray(d.pantry) || !Array.isArray(d.recipes)) throw new Error();
+      Object.assign(S, d); S.shop ||= []; S.cupboard ||= []; $('restoreText').value = ''; commit(); toast('Backup restored');
+    } catch (e) { toast('That is not a Pantry & Plate backup. Paste the whole text you copied.'); }
+  },
+  clearExamples: () => { const n = S.pantry.filter(p => p.example).length; S.pantry = S.pantry.filter(p => !p.example); commit(); toast(`Removed ${n} example items`); },
+  resetAll: b => {
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again: this replaces everything'; return; }
+    Object.assign(S, fresh()); delete b.dataset.armed; b.textContent = 'Start again from the starter set'; commit(); toast('Back to the starter set');
+  }
+};
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (b && ACT[b.dataset.act]) { if (b.dataset.act !== 'tick') e.preventDefault(); e.stopPropagation(); ACT[b.dataset.act](b, e); return; }
+  const t = e.target.closest('.tab'); if (t) setTab(t.dataset.tab);
+  if (e.target.tagName === 'DIALOG') e.target.close(); // backdrop click
+});
+document.addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList?.contains('rcard')) { e.preventDefault(); openRecipe(e.target.dataset.id); }
+});
+$('pSearch').addEventListener('input', e => { ui.pQ = e.target.value; drawPantry(); });
+$('rSearch').addEventListener('input', e => { ui.rQ = e.target.value; drawRecipes(); });
+$('rSort').addEventListener('change', e => { ui.rSort = e.target.value; drawRecipes(); });
+
+$('addItemForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('aiName').value.trim(); if (!name) return;
+  const cat = guessCat(name), loc = $('aiLoc').value || guessLoc(name, cat);
+  const dupe = S.pantry.find(p => key(p.name) === key(name));
+  if (dupe) { dupe.level = 'Plenty'; dupe.amt = $('aiAmt').value.trim() || dupe.amt; dupe.useBy = $('aiUse').value || dupe.useBy; dupe.example = false; toast(`${dupe.name} topped up`); }
+  else { S.pantry.push({ id: uid(), name: name[0].toUpperCase() + name.slice(1), amt: $('aiAmt').value.trim(), loc, level: 'Plenty', cat, useBy: $('aiUse').value, staple: false }); toast(`${name} added to the ${loc.toLowerCase()}`); }
+  $('aiName').value = ''; $('aiAmt').value = ''; $('aiUse').value = ''; $('aiLoc').value = '';
+  commit(); $('aiName').focus();
+});
+$('aiName').addEventListener('input', e => { if (!$('aiLoc').dataset.touched) { const n = e.target.value; $('aiLoc').value = n.trim() ? guessLoc(n, guessCat(n)) : ''; } });
+$('aiLoc').addEventListener('change', () => $('aiLoc').dataset.touched = '1');
+$('addItemForm').addEventListener('reset', () => delete $('aiLoc').dataset.touched);
+
+$('addShopForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('sName').value.trim(); if (!name) return;
+  if (addToShop(name)) { const s = S.shop[S.shop.length - 1]; if ($('sCat').value) s.cat = $('sCat').value; } else toast('Already on the list');
+  $('sName').value = ''; $('sCat').value = ''; commit(); $('sName').focus();
+});
+$('editForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const lines = v => v.split('\n').map(s => s.trim()).filter(Boolean);
+  const data = { title: $('edName').value.trim(), serves: Math.max(1, +$('edServes').value || 4), time: $('edTime').value.trim(), tags: $('edTags').value.split(',').map(s => s.trim()).filter(Boolean),
+    source: $('edSource').value.trim(), ings: lines($('edIngs').value), steps: lines($('edSteps').value).map(s => s.replace(/^(step\s*)?\d+[.):]\s*/i, '')) };
+  if (!data.title) return;
+  let r = S.recipes.find(x => x.id === ui.editing);
+  if (r) Object.assign(r, data);
+  else { r = { id: uid(), ...data, base: false, fav: false, cooked: 0, lastCooked: '', added: today() }; S.recipes.push(r); }
+  $('editDlg').close(); commit(); toast('Recipe saved');
+  if (ui.tab === 'import') { ui.rFilter = 'My additions'; setTab('recipes'); }
+  openRecipe(r.id);
+});
+$('itemForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const i = S.pantry.find(p => p.id === ui.editItem); if (!i) return;
+  Object.assign(i, { name: $('itName').value.trim() || i.name, amt: $('itAmt').value.trim(), useBy: $('itUse').value, loc: $('itLoc').value, cat: $('itCat').value, staple: $('itStaple').checked, example: false });
+  $('itemDlg').close(); commit();
+});
+$('itemDlg').addEventListener('close', () => { const b = $('itDelete'); delete b.dataset.armed; b.textContent = 'Remove'; });
+
+/* ---------- boot ---------- */
+$('aiLoc').innerHTML = '<option value="">Automatic</option>' + LOCS.map(l => `<option>${l}</option>`).join('');
+$('itLoc').innerHTML = LOCS.map(l => `<option>${l}</option>`).join('');
+$('itCat').innerHTML = CATS.map(c => `<option>${c}</option>`).join('');
+$('sCat').innerHTML += CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+applyTheme();
+drawStatus(); drawCounts(); drawNotices();
+let startTab = 'tonight';
+try { startTab = localStorage.getItem('pp-tab') || 'tonight'; } catch (e) {}
+if (location.hash && DRAW[location.hash.slice(1)]) startTab = location.hash.slice(1);
+setTab(startTab, true);
+</script>
