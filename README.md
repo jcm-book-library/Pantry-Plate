@@ -19,11 +19,24 @@ My kitchen app: what's in the pantry, what to cook tonight, the shopping list, a
 | `index.html` | Built from `app.html` for GitHub Pages. Rebuild it with `python3 tools/build-pages.py`. |
 | `manifest.webmanifest`, `icons/` | Home-screen install and icons. |
 
-## Where the data lives
-Version 1 saves everything in the browser on the device you use (`localStorage`, key `pp-data-v1`). Phone and laptop don't share data yet. Use **Your data and backups** at the bottom of the page to copy a backup and restore it on another device.
+## How it connects
+The data lives in the Google Sheet "Pantry & Plate" (`1CwGKMFKzxrI1DOm0SIUx-vn7lvu5hQb1wXZzB3pDny8`). This browser keeps a cache (`localStorage`, key `pp-data-v1`) so the app opens instantly and works offline, and sends changes to the sheet a moment after each edit.
+- **Inside claude.ai:** it uses the Google Sheets connector.
+- **On GitHub Pages:** it uses Google sign-in, with the OAuth Client ID saved in the browser (`mbl_config`, shared with Jackets & Manuscripts, so if that app is already set up on this site there is nothing to paste). The Client ID's Google Cloud project must list `https://jcm-book-library.github.io` under Authorized JavaScript origins. Sign-in lasts about an hour. After that, press **Connect** again.
+- **Anywhere else:** it saves on the device only.
+
+The first time it connects to an empty sheet, it fills the sheet with what is on the device (the starter set or your own items). After that the sheet wins, except for edits that haven't been sent yet. It refreshes when you come back to the page after a couple of minutes, or when you press **Refresh**.
+
+| Tab | Columns |
+|---|---|
+| Pantry | ID, Item, Amount, Kept in, Level, Aisle, Use by, Restock, Example, Deleted, Updated |
+| Recipes | ID, Recipe, Serves, Time, Tags, Ingredients, Method, Source, Base meal, Favourite, Times cooked, Last cooked, Added, Deleted, Updated |
+| Shopping | ID, Item, Aisle, Note, Bought, Deleted, Updated |
+| App Settings | Key, Value (the "cupboard picks" row holds the Clear the cupboard picks) |
+
+Removed items are marked, not deleted: the app sets Deleted to TRUE and hides the row, so nothing is lost and row numbers are never reused. Ingredients and method steps are one per line inside a cell. "Start again from the starter set" marks every old row as deleted and adds the new ones.
 
 ## Ideas for later
-- Sync through a Google Sheet ("Kitchen Tracker"), the same way Jackets & Manuscripts does, so phone and laptop share one pantry and list.
 - A weekly meal plan that builds the shopping list.
 - Import straight from a link (needs a small server or the claude.ai connector, because recipe sites block direct fetches).
 - Ask Claude for suggestions from the claude.ai version.

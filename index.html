@@ -215,7 +215,7 @@ footer textarea{width:100%;min-height:90px;font-size:12px;font-family:ui-monospa
 <path d="M206 222 C 168 196 132 210 128 244 C 160 262 196 254 206 222 Z" fill="currentColor"/>
 </svg><span class="pp-wordmark">Pantry &amp;<br>Plate</span></h1>
     </div>
-    <div class="status" id="status"><span class="dot"></span><span id="statusText">Saved on this device</span></div>
+    <div class="status" id="status"><span class="dot"></span><span id="statusText">Saved on this device</span><button class="btn btn-ghost" id="syncBtn" type="button" hidden>Refresh</button></div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Sections">
@@ -387,7 +387,7 @@ footer textarea{width:100%;min-height:90px;font-size:12px;font-family:ui-monospa
     <details id="dataBox">
       <summary>Your data and backups</summary>
       <div class="stack" style="gap:10px;margin-top:12px">
-        <p class="empty" style="margin:0">Everything is saved in this browser on this device. Copy a backup to move it to another device or keep it safe, then paste it into Restore there.</p>
+        <p class="empty" style="margin:0" id="dataNote"></p>
         <div class="row">
           <button class="btn" data-act="copyBackup">Copy a backup</button>
           <button class="btn btn-ghost" data-act="clearExamples" id="clearExBtn">Remove the example items</button>
@@ -434,6 +434,18 @@ footer textarea{width:100%;min-height:90px;font-size:12px;font-family:ui-monospa
       <button class="btn btn-ghost btn-danger left" type="button" data-act="deleteRecipe" id="edDelete">Delete recipe</button>
       <button class="btn btn-primary" type="submit">Save recipe</button>
     </div>
+  </form>
+</dialog>
+
+<!-- Google sign-in (GitHub Pages) -->
+<dialog id="gDlg" aria-labelledby="gTitle" style="width:min(520px,calc(100vw - 32px))">
+  <form id="gForm" method="dialog">
+    <div class="dlg-head"><h2 id="gTitle">Connect your Google Sheet</h2><button class="btn btn-ghost" type="button" id="gClose">Close</button></div>
+    <div class="dlg-body">
+      <p class="muted" style="margin:0;font-size:14px">Paste the OAuth Client ID from your Google Cloud project (the same one Jackets &amp; Manuscripts uses). It's saved in this browser only.</p>
+      <div class="field"><label for="gClient">OAuth Client ID</label><input type="text" id="gClient" autocomplete="off" spellcheck="false" placeholder="1234…apps.googleusercontent.com"></div>
+    </div>
+    <div class="dlg-foot"><span class="muted" id="gMsg" style="font-size:13px;align-self:center"></span><button class="btn btn-primary" type="submit">Connect</button></div>
   </form>
 </dialog>
 
@@ -904,13 +916,20 @@ function applyTheme() {
 
 /* ---------- drawing ---------- */
 function drawStatus() {
-  const st = $('status');
-  st.dataset.state = storageOk ? 'live' : 'error';
-  $('statusText').textContent = storageOk ? (savedAt ? 'Saved on this device at ' + savedAt.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : 'Saved on this device') : 'Not saving: this browser blocks storage';
+  const synced = conn && pulled && !syncErr;
+  let kind = 'live', text;
+  if (!storageOk && !synced) { kind = 'error'; text = 'Not saving: this browser blocks storage'; }
+  else if (syncMsg) { kind = syncMsg.kind; text = syncMsg.text; }
+  else text = mode === 'local' ? 'Saved on this device only' : 'Saved on this device';
+  $('status').dataset.state = kind; $('statusText').textContent = text;
+  $('dataNote').innerHTML = conn && pulled
+    ? `Your pantry, recipes and shopping list are kept in your <a href="${SHEET_URL}" target="_blank" rel="noopener" style="color:inherit">Google Sheet</a>, and this browser keeps a backup copy. Copy a backup to keep a separate copy, then paste it into Restore to bring it back.`
+    : 'Everything is saved in this browser on this device. Copy a backup to move it to another device or keep it safe, then paste it into Restore there.';
 }
 function drawNotices() {
   const n = [];
-  if (!storageOk) n.push(`<div class="notice" data-kind="error"><span>This browser isn't letting the app save. Changes last until you close the page. Use <b>Copy a backup</b> at the bottom to keep them.</span></div>`);
+  if (!storageOk && !(conn && pulled && !syncErr)) n.push(`<div class="notice" data-kind="error"><span>This browser isn't letting the app save. Changes last until you close the page. Use <b>Copy a backup</b> at the bottom to keep them.</span></div>`);
+  if (syncNote) n.push(`<div class="notice"${syncNote.kind === 'error' ? ' data-kind="error"' : ''}><span>${esc(syncNote.text)}</span></div>`);
   if (S.pantry.some(p => p.example)) n.push(`<div class="notice"><span>The pantry is filled with example items so you can see how it works. Edit them, or clear them and add your own.</span><button class="btn" data-act="clearExamples">Remove the examples</button></div>`);
   $('notices').innerHTML = n.join('');
   $('clearExBtn').hidden = !S.pantry.some(p => p.example);
@@ -1186,7 +1205,272 @@ function setTab(name, keepScroll) {
   if (!keepScroll) window.scrollTo({ top: 0 });
 }
 function redraw() { invalidate(); drawCounts(); drawNotices(); DRAW[ui.tab](); if ($('recipeDlg').open) drawRecipeDlg(); }
-function commit() { save(); redraw(); }
+function commit() { save(); redraw(); schedulePush(); }
+
+/* ---------- Google Sheet sync ----------
+   The sheet is the home of the data; S and localStorage are a cache. Nothing is instrumented per action:
+   after any commit we diff S against what the sheet last held (X.synced) and send only the difference. */
+const SHEET_ID = '1CwGKMFKzxrI1DOm0SIUx-vn7lvu5hQb1wXZzB3pDny8', SERVER = 'Google Sheets';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit';
+const SYNC_KEY = 'pp-sync', TK = ['pantry', 'recipes', 'shop'];
+const toBool = v => String(v).trim().toUpperCase() === 'TRUE';
+const toNum = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const splitLines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+const C = (h, get, set) => ({ h, get, set });
+const TABS = {
+  pantry: { name: 'Pantry', list: 'pantry', cols: [C('ID', r => r.id, (r, v) => r.id = v), C('Item', r => r.name, (r, v) => r.name = v), C('Amount', r => r.amt || '', (r, v) => r.amt = v),
+    C('Kept in', r => r.loc, (r, v) => r.loc = v), C('Level', r => r.level, (r, v) => r.level = v), C('Aisle', r => r.cat, (r, v) => r.cat = v), C('Use by', r => r.useBy || '', (r, v) => r.useBy = v),
+    C('Restock', r => !!r.staple, (r, v) => r.staple = toBool(v)), C('Example', r => !!r.example, (r, v) => r.example = toBool(v)), C('Deleted', () => false)] },
+  recipes: { name: 'Recipes', list: 'recipes', cols: [C('ID', r => r.id, (r, v) => r.id = v), C('Recipe', r => r.title, (r, v) => r.title = v), C('Serves', r => Number(r.serves) || 0, (r, v) => r.serves = toNum(v) || 4),
+    C('Time', r => r.time || '', (r, v) => r.time = v), C('Tags', r => (r.tags || []).join(', '), (r, v) => r.tags = String(v || '').split(',').map(x => x.trim()).filter(Boolean)),
+    C('Ingredients', r => (r.ings || []).join('\n'), (r, v) => r.ings = splitLines(v)), C('Method', r => (r.steps || []).join('\n'), (r, v) => r.steps = splitLines(v)),
+    C('Source', r => r.source || '', (r, v) => r.source = v), C('Base meal', r => !!r.base, (r, v) => r.base = toBool(v)), C('Favourite', r => !!r.fav, (r, v) => r.fav = toBool(v)),
+    C('Times cooked', r => Number(r.cooked) || 0, (r, v) => r.cooked = toNum(v)), C('Last cooked', r => r.lastCooked || '', (r, v) => r.lastCooked = v), C('Added', r => r.added || '', (r, v) => r.added = v), C('Deleted', () => false)] },
+  shop: { name: 'Shopping', list: 'shop', cols: [C('ID', r => r.id, (r, v) => r.id = v), C('Item', r => r.name, (r, v) => r.name = v), C('Aisle', r => r.cat, (r, v) => r.cat = v),
+    C('Note', r => r.note || '', (r, v) => r.note = v), C('Bought', r => !!r.done, (r, v) => r.done = toBool(v)), C('Deleted', () => false)] }
+};
+for (const t of TK) { const T = TABS[t]; T.head = T.cols.map(c => c.h).concat('Updated'); T.delIdx = T.cols.length - 1; T.last = String.fromCharCode(64 + T.head.length); T.q = T.name; }
+const SET_RANGE = "'App Settings'!A1:B50", SET_KEY = 'cupboard picks';
+const enc = v => typeof v === 'string' ? (v === '' ? '' : "'" + v) : v;
+const rowArr = (tab, r) => TABS[tab].cols.map(c => enc(c.get(r)));
+
+let conn = null, google = false, mode = 'boot', pulled = false, pulling = false, pushing = false, again = false, pullAfter = false, pushT = null, lastPull = 0;
+let syncMsg = null, syncNote = null, syncErr = null;
+const blankX = () => ({ ever: false, rowOf: { pantry: {}, recipes: {}, shop: {} }, synced: { pantry: {}, recipes: {}, shop: {} }, setRow: 0, setSynced: null, dirty: {}, deleted: {} });
+const X = (() => { try { const d = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (d && d.rowOf && d.synced) return { ...blankX(), ...d }; } catch (e) {} return blankX(); })();
+function setSync(kind, text) { syncMsg = { kind, text }; drawStatus(); }
+const clock = () => new Date().toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' });
+function markSynced() { syncErr = null; syncNote = null; lastPull = lastPull || Date.now(); setSync('live', 'Synced with your Google Sheet at ' + clock()); drawNotices(); }
+function persistX() {
+  try {
+    const d = diff(); X.dirty = {}; X.deleted = {};
+    TK.forEach(t => { X.dirty[t] = d[t].add.concat(d[t].upd).map(r => r.id); X.deleted[t] = d[t].del; }); X.dirty.settings = d.settings;
+    localStorage.setItem(SYNC_KEY, JSON.stringify(X));
+  } catch (e) {}
+}
+/* What differs between S and the last known sheet state */
+function diff() {
+  const d = { settings: X.setSynced !== S.cupboard.join(',') };
+  for (const t of TK) {
+    const ids = new Set(S[t].map(r => r.id)), o = { add: [], upd: [], del: [] };
+    S[t].forEach(r => { if (!(r.id in X.rowOf[t])) o.add.push(r); else if (X.synced[t][r.id] !== JSON.stringify(rowArr(t, r))) o.upd.push(r); });
+    o.del = Object.keys(X.synced[t]).filter(id => !ids.has(id));
+    d[t] = o;
+  }
+  return d;
+}
+const hasWork = d => d.settings || TK.some(t => d[t].add.length || d[t].upd.length || d[t].del.length);
+
+function explain(err) {
+  switch (err && err.code) {
+    case 'server_not_connected': return 'Google Sheets isn\'t connected for your account. Add it in claude.ai Settings → Connectors, then press Refresh.';
+    case 'google_signin': return 'Your Google sign-in has expired. Press Connect to sign in again.';
+    case 'needs_reauth': return 'Your Google Sheets connection has expired. Reconnect it in claude.ai Settings → Connectors, then press Refresh.';
+    case 'selection_required': return 'You have more than one Google Sheets connector. Choose one when Claude asks, then press Refresh.';
+    case 'not_in_manifest': case 'consent_required': return 'This page isn\'t allowed to use Google Sheets yet. Allow it from the page\'s permissions, then press Refresh.';
+    case 'blocked_by_policy': return 'Your organisation blocks Google Sheets for this page.';
+    case 'server_unavailable': return 'Google Sheets didn\'t answer in time. Press Refresh to try again.';
+    case 'tool_error': return 'Google Sheets reported a problem: ' + (err.message || 'unknown error') + '.';
+    case 'not_granted': case 'capability_disabled': case 'capability_removed': return 'This view can\'t reach your connectors. Open the page in Claude to connect your sheet.';
+    default: return 'Couldn\'t reach your sheet' + (err && err.message ? ': ' + err.message : '') + '. Press Refresh to try again.';
+  }
+}
+function syncFailed(err) {
+  syncErr = err || {};
+  const m = explain(err);
+  setSync('error', m);
+  syncNote = { kind: 'error', text: m + (pulled ? ' Your changes are saved on this device and will go to the sheet once it works.' : '') };
+  drawNotices();
+}
+
+async function readRange(range) {
+  const res = await conn.callTool(SERVER, 'get_values', { spreadsheetId: SHEET_ID, range }, { cache: false });
+  const p = res && res.payload;
+  return (p && Array.isArray(p.values)) ? p.values : [];
+}
+const writeTool = (tool, range, values) => conn.callTool(SERVER, tool, { spreadsheetId: SHEET_ID, range, values });
+
+function parseTab(tab, values) {
+  const T = TABS[tab], head = (values[0] || []).map(h => String(h).trim()), idx = T.cols.map(c => head.indexOf(c.h));
+  if (idx[0] < 0) throw { code: 'tool_error', message: 'the ' + T.name + ' tab has no ID column' };
+  const o = { recs: [], rowOf: {}, synced: {}, has: false };
+  values.slice(1).forEach((row, i) => {
+    const cell = k => idx[k] < 0 ? '' : (row[idx[k]] ?? '');
+    const id = String(cell(0)).trim(); if (!id) return;
+    o.has = true; o.rowOf[id] = i + 2;
+    if (toBool(cell(T.delIdx))) return;
+    const r = {}; T.cols.forEach((c, k) => { if (c.set) c.set(r, String(cell(k))); });
+    o.recs.push(r); o.synced[id] = JSON.stringify(rowArr(tab, r));
+  });
+  return o;
+}
+
+async function pull() {
+  if (!conn) return;
+  if (pushing) { pullAfter = true; return; }
+  if (pulling) return;
+  pulling = true; clearTimeout(pushT); pushT = null; syncBusy(true);
+  setSync('loading', 'Loading your sheet…');
+  try {
+    const [pa, re, sh, se] = await Promise.all([readRange('Pantry!A1:K5000'), readRange('Recipes!A1:O2000'), readRange('Shopping!A1:G5000'), readRange(SET_RANGE)]);
+    const P = { pantry: parseTab('pantry', pa), recipes: parseTab('recipes', re), shop: parseTab('shop', sh) };
+    const seed = !P.pantry.has && !P.recipes.has;       // first connect: the sheet is empty, so it takes our data
+    const keep = X.ever && !seed ? diff() : null;       // local edits not yet sent win over the sheet
+    for (const t of TK) {
+      if (seed) continue;
+      const loc = new Map(S[t].map(r => [r.id, r])), dirty = new Set(), gone = new Set(), ids = new Set(P[t].recs.map(r => r.id));
+      if (keep) { keep[t].add.concat(keep[t].upd).forEach(r => dirty.add(r.id)); keep[t].del.forEach(id => gone.add(id)); }
+      const out = P[t].recs.filter(r => !gone.has(r.id)).map(r => dirty.has(r.id) && loc.has(r.id) ? loc.get(r.id) : r);
+      dirty.forEach(id => { if (!ids.has(id) && loc.has(id)) out.push(loc.get(id)); });
+      S[t] = out;
+    }
+    let setRow = 0, setVal = null;
+    se.forEach((r, i) => { if (!setRow && String(r[0] || '').trim() === SET_KEY) { setRow = i + 1; setVal = String(r[1] ?? ''); } });
+    if (!seed && !(keep && keep.settings)) S.cupboard = setVal ? setVal.split(',').filter(id => S.pantry.some(p => p.id === id)) : [];
+    TK.forEach(t => { X.rowOf[t] = P[t].rowOf; X.synced[t] = seed && t !== 'shop' ? {} : P[t].synced; });
+    X.setRow = setRow; X.setSynced = setVal; X.ever = true;
+    pulled = true; lastPull = Date.now(); syncErr = null; syncNote = null;
+    save(); redraw();
+    pulling = false; syncBusy(false);
+    if (hasWork(diff())) { persistX(); await push(); } else { persistX(); markSynced(); }
+  } catch (e) { pulling = false; syncBusy(false); syncFailed(e); }
+}
+
+function schedulePush() {
+  if (!conn) return;
+  persistX();
+  if (!pulled || (google && !google_.valid())) return;
+  setSync('loading', 'Saving to your sheet…');
+  clearTimeout(pushT); pushT = setTimeout(push, 1200);
+}
+
+/* After an append we don't know the new row numbers (rowOf = 0): read column A to find them */
+async function fixRows() {
+  for (const t of TK) {
+    if (!Object.values(X.rowOf[t]).includes(0)) continue;
+    const col = await readRange(TABS[t].q + '!A1:A5000');
+    col.forEach((r, i) => { const id = String(r[0] ?? '').trim(); if (id && i > 0 && id in X.rowOf[t] && X.rowOf[t][id] === 0) X.rowOf[t][id] = i + 1; });
+    Object.keys(X.rowOf[t]).forEach(id => { if (X.rowOf[t][id] === 0) { delete X.rowOf[t][id]; delete X.synced[t][id]; } });
+  }
+}
+
+async function push() {
+  clearTimeout(pushT); pushT = null;
+  if (!conn || !pulled) return;
+  if (pushing || pulling) { again = true; return; }
+  pushing = true; again = false; let failed = false;
+  try {
+    await fixRows();
+    const d = diff();
+    if (!hasWork(d)) { markSynced(); return; }
+    persistX(); setSync('loading', 'Saving to your sheet…');
+    const now = "'" + new Date().toISOString();
+    for (const t of TK) {
+      const T = TABS[t], { add, upd, del } = d[t], rng = n => `${T.q}!A${n}:${T.last}${n}`;
+      for (const r of upd) { const arr = rowArr(t, r), n = X.rowOf[t][r.id]; await writeTool('update_values', rng(n), [[...arr, now]]); X.synced[t][r.id] = JSON.stringify(arr); }
+      for (const id of del) { const arr = JSON.parse(X.synced[t][id]), n = X.rowOf[t][id]; arr[T.delIdx] = true; await writeTool('update_values', rng(n), [[...arr, now]]); delete X.synced[t][id]; }
+      if (add.length) {
+        await writeTool('append_values', T.q + '!A1', add.map(r => [...rowArr(t, r), now]));
+        add.forEach(r => { X.rowOf[t][r.id] = 0; X.synced[t][r.id] = JSON.stringify(rowArr(t, r)); });
+        await fixRows();
+      }
+    }
+    if (d.settings) {
+      const v = S.cupboard.join(',');
+      if (X.setRow) await writeTool('update_values', `'App Settings'!B${X.setRow}`, [[enc(v)]]);
+      else {
+        await writeTool('append_values', "'App Settings'!A1", [[enc(SET_KEY), enc(v)]]);
+        (await readRange(SET_RANGE)).forEach((r, i) => { if (String(r[0] || '').trim() === SET_KEY) X.setRow = i + 1; });
+      }
+      X.setSynced = v;
+    }
+    markSynced();
+  } catch (e) { failed = true; syncFailed(e); }
+  finally {
+    pushing = false; persistX();
+    if (pullAfter) { pullAfter = false; pull(); }
+    else if (again && !failed) schedulePush();
+  }
+}
+
+function syncBusy(b) { $('syncBtn').disabled = b; }
+function showSyncBtn(label) { const b = $('syncBtn'); b.hidden = false; b.textContent = label; }
+
+/* ---------- Google sign-in (GitHub Pages and other hosts outside claude.ai) ----------
+   Same calls as the claude.ai connector, sent straight to the Sheets API. Writes use USER_ENTERED, like the connector. */
+const google_ = {
+  cfgKey: 'mbl_config', tokKey: 'pp-google-token', client: null,
+  cfg() { try { return JSON.parse(localStorage.getItem(this.cfgKey) || 'null') || {}; } catch (e) { return {}; } },
+  saveCfg(c) { try { localStorage.setItem(this.cfgKey, JSON.stringify({ ...this.cfg(), ...c })); } catch (e) {} },
+  tok() { try { return JSON.parse(localStorage.getItem(this.tokKey) || 'null'); } catch (e) { return null; } },
+  valid() { const t = this.tok(); return !!(t && t.exp > Date.now()); },
+  async callTool(server, tool, input) {
+    if (!this.valid()) { googleSignedOut(); throw { code: 'google_signin' }; }
+    const base = `https://sheets.googleapis.com/v4/spreadsheets/${input.spreadsheetId}/values/${encodeURIComponent(input.range)}`;
+    const url = tool === 'get_values' ? base : tool === 'append_values' ? base + ':append?valueInputOption=USER_ENTERED' : base + '?valueInputOption=USER_ENTERED';
+    const opts = { method: tool === 'get_values' ? 'GET' : tool === 'append_values' ? 'POST' : 'PUT', headers: { Authorization: 'Bearer ' + this.tok().t } };
+    if (tool !== 'get_values') { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify({ values: input.values }); }
+    const res = await fetch(url, opts);
+    if (res.status === 401) { try { localStorage.removeItem(this.tokKey); } catch (e) {} googleSignedOut(); throw { code: 'google_signin' }; }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw { code: 'tool_error', message: (body.error && body.error.message) || 'HTTP ' + res.status };
+    return { payload: body };
+  }
+};
+function googleSignedOut() {
+  showSyncBtn('Connect');
+  setSync('error', pulled ? 'Signed out of Google. Changes are saved on this device.' : 'Not connected to your sheet. Changes are saved on this device.');
+}
+function loadGis() {
+  return new Promise((ok, fail) => {
+    if (window.google && google.accounts && google.accounts.oauth2) return ok();
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = () => ok(); s.onerror = () => fail(new Error('Google sign-in didn\'t load'));
+    document.head.appendChild(s);
+  });
+}
+const gNote = (text, kind) => { syncNote = text ? { kind, text } : null; drawNotices(); };
+// Runs from a click, and stays synchronous once Google's script has loaded, so the sign-in popup isn't blocked
+function googleConnect() {
+  const id = google_.cfg().clientId;
+  if (!id) { $('gClient').value = ''; $('gMsg').textContent = ''; $('gDlg').showModal(); return; }
+  if (!(window.google && google.accounts && google.accounts.oauth2)) { loadGis().then(googleConnect, err => gNote(err.message, 'error')); return; }
+  try {
+    if (!google_.client) google_.client = google.accounts.oauth2.initTokenClient({
+      client_id: id, scope: 'https://www.googleapis.com/auth/spreadsheets',
+      callback: r => {
+        if (r.error) { gNote('Google sign-in failed: ' + r.error, 'error'); return; }
+        try { localStorage.setItem(google_.tokKey, JSON.stringify({ t: r.access_token, exp: Date.now() + (r.expires_in - 120) * 1000 })); } catch (e) {}
+        showSyncBtn('Refresh'); gNote('');
+        pull();
+      },
+      error_callback: e => gNote('Google sign-in was closed or blocked' + (e && e.type ? ' (' + e.type + ')' : '') + '. Press Connect to try again.', 'error')
+    });
+    google_.client.requestAccessToken({ prompt: '' });
+  } catch (err) { gNote(err.message, 'error'); }
+}
+function googleBoot() {
+  google = true; conn = google_; mode = 'google';
+  loadGis().catch(() => {});
+  if (google_.valid()) { showSyncBtn('Refresh'); pull(); return; }
+  showSyncBtn('Connect');
+  setSync('live', 'Saved on this device. Press Connect to sync with your sheet.');
+  gNote(google_.cfg().clientId ? 'Press Connect to sign in to Google and load your sheet.' : 'Press Connect to link your Google Sheet. You\'ll need the OAuth Client ID from your Google Cloud project.');
+}
+$('gClose').addEventListener('click', () => $('gDlg').close());
+$('gForm').addEventListener('submit', e => {
+  const v = $('gClient').value.trim();
+  if (!/\.apps\.googleusercontent\.com$/.test(v)) { e.preventDefault(); $('gMsg').textContent = 'That doesn\'t look like a Client ID.'; return; }
+  google_.saveCfg({ clientId: v }); google_.client = null;
+  googleConnect();
+});
+$('syncBtn').addEventListener('click', () => { if (google && !google_.valid()) googleConnect(); else pull(); });
+window.addEventListener('focus', () => {
+  if (!conn || pulling || pushing || pushT || (google && !google_.valid())) return;
+  if (pulled && syncErr) push();
+  else if (!pulled || Date.now() - lastPull > 120000) pull();
+});
 
 /* ---------- actions ---------- */
 const ACT = {
@@ -1247,7 +1531,7 @@ const ACT = {
     const txt = CATS.map(c => [c, open.filter(s => s.cat === c)]).filter(g => g[1].length).map(([c, it]) => c.toUpperCase() + '\n' + it.map(s => '☐ ' + s.name).join('\n')).join('\n\n');
     copyText(txt);
   },
-  cupboardSoon: () => { S.cupboard = S.pantry.filter(isSoon).map(p => p.id); save(); setTab('cupboard'); },
+  cupboardSoon: () => { S.cupboard = S.pantry.filter(isSoon).map(p => p.id); save(); schedulePush(); setTab('cupboard'); },
   cbToggle: b => { const id = b.dataset.id; S.cupboard = S.cupboard.includes(id) ? S.cupboard.filter(x => x !== id) : [...S.cupboard, id]; commit(); },
   cbPickSoon: () => { S.cupboard = S.pantry.filter(isSoon).map(p => p.id); commit(); },
   cbPickAll: () => { S.cupboard = S.pantry.filter(p => p.level !== 'Out').map(p => p.id); commit(); },
@@ -1271,7 +1555,7 @@ const ACT = {
   },
   clearExamples: () => { const n = S.pantry.filter(p => p.example).length; S.pantry = S.pantry.filter(p => !p.example); commit(); toast(`Removed ${n} example items`); },
   resetAll: b => {
-    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again: this replaces everything'; return; }
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = conn && pulled ? 'Tap again: this replaces everything, including your sheet' : 'Tap again: this replaces everything'; return; }
     Object.assign(S, fresh()); delete b.dataset.armed; b.textContent = 'Start again from the starter set'; commit(); toast('Back to the starter set');
   }
 };
@@ -1341,4 +1625,17 @@ let startTab = 'tonight';
 try { startTab = localStorage.getItem('pp-tab') || 'tonight'; } catch (e) {}
 if (location.hash && DRAW[location.hash.slice(1)]) startTab = location.hash.slice(1);
 setTab(startTab, true);
+(async () => {
+  if (!(window.claude && window.claude.use)) { googleBoot(); return; }
+  setSync('loading', 'Loading your sheet…');
+  let mcp = null;
+  try { mcp = await window.claude.use('mcp'); } catch (e) {}
+  if (!mcp) {
+    mode = 'local'; syncMsg = null; drawStatus();
+    syncNote = { kind: '', text: 'Your changes are saved on this device only. The Google Sheet connects when this is opened in Claude or on the GitHub Pages site.' }; drawNotices();
+    return;
+  }
+  conn = mcp; mode = 'mcp'; showSyncBtn('Refresh');
+  pull();
+})();
 </script>
