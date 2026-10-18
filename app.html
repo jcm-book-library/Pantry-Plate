@@ -1221,7 +1221,7 @@ const SET_RANGE = "'App Settings'!A1:B50", SET_KEY = 'cupboard picks';
 const enc = v => typeof v === 'string' ? (v === '' ? '' : "'" + v) : v;
 const rowArr = (tab, r) => TABS[tab].cols.map(c => enc(c.get(r)));
 
-let conn = null, google = false, mode = 'boot', pulled = false, pulling = false, pushing = false, again = false, pullAfter = false, pushT = null, lastPull = 0;
+let conn = null, gMode = false, mode = 'boot', pulled = false, pulling = false, pushing = false, again = false, pullAfter = false, pushT = null, lastPull = 0;
 let syncMsg = null, syncNote = null, syncErr = null;
 const blankX = () => ({ ever: false, rowOf: { pantry: {}, recipes: {}, shop: {} }, synced: { pantry: {}, recipes: {}, shop: {} }, setRow: 0, setSynced: null, dirty: {}, deleted: {} });
 const X = (() => { try { const d = JSON.parse(localStorage.getItem(SYNC_KEY) || 'null'); if (d && d.rowOf && d.synced) return { ...blankX(), ...d }; } catch (e) {} return blankX(); })();
@@ -1326,7 +1326,7 @@ async function pull() {
 function schedulePush() {
   if (!conn) return;
   persistX();
-  if (!pulled || (google && !google_.valid())) return;
+  if (!pulled || (gMode && !google_.valid())) return;
   setSync('loading', 'Saving to your sheet…');
   clearTimeout(pushT); pushT = setTimeout(push, 1200);
 }
@@ -1438,7 +1438,7 @@ function googleConnect() {
   } catch (err) { gNote(err.message, 'error'); }
 }
 function googleBoot() {
-  google = true; conn = google_; mode = 'google';
+  gMode = true; conn = google_; mode = 'google';
   loadGis().catch(() => {});
   if (google_.valid()) { showSyncBtn('Refresh'); pull(); return; }
   showSyncBtn('Connect');
@@ -1452,9 +1452,9 @@ $('gForm').addEventListener('submit', e => {
   google_.saveCfg({ clientId: v }); google_.client = null;
   googleConnect();
 });
-$('syncBtn').addEventListener('click', () => { if (google && !google_.valid()) googleConnect(); else pull(); });
+$('syncBtn').addEventListener('click', () => { if (gMode && !google_.valid()) googleConnect(); else pull(); });
 window.addEventListener('focus', () => {
-  if (!conn || pulling || pushing || pushT || (google && !google_.valid())) return;
+  if (!conn || pulling || pushing || pushT || (gMode && !google_.valid())) return;
   if (pulled && syncErr) push();
   else if (!pulled || Date.now() - lastPull > 120000) pull();
 });
