@@ -1,0 +1,10 @@
+{
+  "name": "Pantry & Plate",
+  "repo": "Pantry-Plate",
+  "purpose": "A kitchen app for the pantry, shopping list and recipes in Australian measures, backed by the Pantry & Plate Google Sheet.",
+  "family": "Home",
+  "stage": "Working",
+  "live": "https://jcm-book-library.github.io/Pantry-Plate/",
+  "tags": [],
+  "updated": "2026-10-19"
+}
